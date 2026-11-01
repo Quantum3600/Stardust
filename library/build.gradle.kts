@@ -44,32 +44,23 @@ kotlin {
 }
 
 
+// If you are using the vanniktech mavenPublishing plugin:
 mavenPublishing {
-    publishToMavenCentral()
-    signAllPublications()
-    coordinates(group.toString(), "composemeshgradient", version.toString())
+    // Only require signing if keys are present (or disable signing for JitPack builds)
+    if (project.hasProperty("signingInMemoryKey") || project.hasProperty("signing.keyId")) {
+        signAllPublications()
+    }
+    coordinates("com.github.quantum3600", "composemeshgradientcmp", version.toString())
 
     pom {
-        name.set("Compose Mesh Gradient")
-        description.set("A Compose Multiplatform library for mesh gradients.")
-        url.set("https://github.com/om252345/composemeshgradient")
+        name.set("Compose Mesh Gradient Multiplatform")
+        description.set("A dynamic mesh gradient library for Compose Multiplatform.")
+        url.set("https://github.com/quantum3600/composemeshgradient")
         licenses {
             license {
                 name.set("The Apache License, Version 2.0")
-                url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
             }
-        }
-        developers {
-            developer {
-                id.set("om252345")
-                name.set("Omkar Deshmukh")
-                email.set("omkard@gmail.com")
-            }
-        }
-        scm {
-            connection.set("scm:git:github.com/om252345/composemeshgradient.git")
-            developerConnection.set("scm:git:ssh://github.com/om252345/composemeshgradient.git")
-            url.set("https://github.com/om252345/composemeshgradient")
         }
     }
 }
