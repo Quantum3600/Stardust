@@ -43,6 +43,14 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.animation)
         }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+        val desktopTest by getting {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+            }
+        }
     }
 }
 

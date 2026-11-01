@@ -72,5 +72,6 @@ android {
 compose.desktop {
     application {
         mainClass = "github.om252345.composemeshgradient.DesktopMainKt"
+        jvmArgs("-Xms64m", "-Xmx512m")
     }
 }

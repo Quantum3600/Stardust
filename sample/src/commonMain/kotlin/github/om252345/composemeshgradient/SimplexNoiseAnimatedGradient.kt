@@ -65,7 +65,8 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
                 time += deltaTime
 
                 // a. Calculate new target positions with Simplex Noise
-                val animationSpeed = 0.3f
+                // Reduced animation speed from 0.3f to 0.15f for a calmer flow
+                val animationSpeed = 0.15f
                 for (i in targetPoints.indices) {
                     val col = i % width
                     val row = i / width
@@ -76,16 +77,18 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
                         targetPoints[i] = basePoints[i]
                     } else {
                         val bp = basePoints[i]
+                        // Reduced amplitude from 0.2f to 0.12f to prevent points from crossing each other 
+                        // (which causes the mesh to physically fold over itself)
                         val noiseX =
-                            SimplexNoise.noise(bp.x * 1.5f, time * animationSpeed + i) * 0.2f
+                            SimplexNoise.noise(bp.x * 1.5f, time * animationSpeed + i) * 0.12f
                         val noiseY =
-                            SimplexNoise.noise(bp.y * 1.5f, time * animationSpeed + i + 100f) * 0.2f
+                            SimplexNoise.noise(bp.y * 1.5f, time * animationSpeed + i + 100f) * 0.12f
                         targetPoints[i] = Offset(bp.x + noiseX, bp.y + noiseY)
                     }
                 }
 
                 // b. Smoothly interpolate the current points towards the moving target
-                val smoothingFactor = 8f // Higher value means faster following
+                val smoothingFactor = 4f // Lower value means smoother/softer following (was 8f)
                 for (i in currentPoints.indices) {
                     currentPoints[i] = lerp(
                         currentPoints[i],

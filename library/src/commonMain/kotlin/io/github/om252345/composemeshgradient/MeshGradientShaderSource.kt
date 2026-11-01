@@ -7,6 +7,10 @@ uniform int uHeight;
 uniform float4 uPackedPoints[13];
 uniform float4 uColors[25];
 
+int clampInt(int val, int minVal, int maxVal) {
+    return val < minVal ? minVal : (val > maxVal ? maxVal : val);
+}
+
 float catmullRom(float p0, float p1, float p2, float p3, float t) {
     float t2 = t * t;
     float t3 = t2 * t;
@@ -19,25 +23,35 @@ float catmullRom(float p0, float p1, float p2, float p3, float t) {
 }
 
 int pointIndex(int x, int y) {
-    return clamp(y, 0, uHeight - 1) * uWidth + clamp(x, 0, uWidth - 1);
+    return clampInt(y, 0, uHeight - 1) * uWidth + clampInt(x, 0, uWidth - 1);
 }
 
 float2 pointAt(int x, int y) {
     int idx = pointIndex(x, y);
     int pairIndex = idx / 2;
-    float4 packedPair = uPackedPoints[pairIndex];
-    return (idx % 2 == 0) ? packedPair.xy : packedPair.zw;
+    float4 packedPair = uPackedPoints[0];
+    for (int i = 0; i < 13; i++) {
+        if (i == pairIndex) {
+            packedPair = uPackedPoints[i];
+            break;
+        }
+    }
+    return ((pairIndex * 2) == idx) ? packedPair.xy : packedPair.zw;
 }
 
 float4 colorAt(int x, int y) {
-    return uColors[pointIndex(x, y)];
+    int idx = pointIndex(x, y);
+    for (int i = 0; i < 25; i++) {
+        if (i == idx) return uColors[i];
+    }
+    return uColors[0];
 }
 
 // Perform color mixing in perceptual gamma space to match raw GLES20 vertex blending
 half4 blendMeshColors(half4 c1, half4 c2, half4 c3, half4 c4, float u, float v) {
-    half4 top = mix(c1, c2, u);
-    half4 bottom = mix(c3, c4, u);
-    return mix(top, bottom, v);
+    half4 top = mix(c1, c2, half(u));
+    half4 bottom = mix(c3, c4, half(u));
+    return mix(top, bottom, half(v));
 }
 
 float2 interpolatePointRow(int x, int y, float t) {
@@ -67,8 +81,8 @@ float4 interpolateColorRow(int x, int y, float t) {
 float2 evaluatePosition(float2 uv) {
     float gridX = uv.x * float(uWidth - 1);
     float gridY = uv.y * float(uHeight - 1);
-    int cellX = clamp(int(floor(gridX)), 0, uWidth - 2);
-    int cellY = clamp(int(floor(gridY)), 0, uHeight - 2);
+    int cellX = clampInt(int(floor(gridX)), 0, uWidth - 2);
+    int cellY = clampInt(int(floor(gridY)), 0, uHeight - 2);
     float localU = clamp(gridX - float(cellX), 0.0, 1.0);
     float localV = clamp(gridY - float(cellY), 0.0, 1.0);
     float2 row0 = interpolatePointRow(cellX, cellY - 1, localU);
@@ -84,8 +98,8 @@ float2 evaluatePosition(float2 uv) {
 float4 evaluateColor(float2 uv) {
     float gridX = uv.x * float(uWidth - 1);
     float gridY = uv.y * float(uHeight - 1);
-    int cellX = clamp(int(floor(gridX)), 0, uWidth - 2);
-    int cellY = clamp(int(floor(gridY)), 0, uHeight - 2);
+    int cellX = clampInt(int(floor(gridX)), 0, uWidth - 2);
+    int cellY = clampInt(int(floor(gridY)), 0, uHeight - 2);
     float localU = clamp(gridX - float(cellX), 0.0, 1.0);
     float localV = clamp(gridY - float(cellY), 0.0, 1.0);
     float4 row0 = interpolateColorRow(cellX, cellY - 1, localU);
@@ -109,30 +123,53 @@ half3 toLinear(half3 c) {
 }
 
 half4 main(float2 coord) {
-    float2 target = clamp(coord / uResolution, 0.0, 1.0);
+    float2 target = clamp(coord / uResolution, float2(0.0, 0.0), float2(1.0, 1.0));
     float2 uv = target;
     float epsilon = 0.002;
 
-    // Invert the warped bicubic surface with a few Newton iterations. This keeps the draw as one
-    // full-bounds rectangle while preserving the control-point deformation per fragment.
+    // Invert the warped bicubic surface using Levenberg-Marquardt iteration.
+    // Increased iteration limit for aggressive noise folding where LM falls back 
+    // to gradient descent and takes smaller steps.
     for (int iteration = 0; iteration < 5; iteration++) {
         float2 position = evaluatePosition(uv);
-        float2 dx = (evaluatePosition(clamp(uv + float2(epsilon, 0.0), 0.0, 1.0)) - position) / epsilon;
-        float2 dy = (evaluatePosition(clamp(uv + float2(0.0, epsilon), 0.0, 1.0)) - position) / epsilon;
-        float determinant = dx.x * dy.y - dx.y * dy.x;
-        if (abs(determinant) < 1e-5) break;
         float2 error = position - target;
+
+        if (dot(error, error) < 1e-5) break;
+
+        float stepX = (uv.x + epsilon > 1.0) ? -epsilon : epsilon;
+        float2 dx = (evaluatePosition(uv + float2(stepX, 0.0)) - position) / stepX;
+        
+        float stepY = (uv.y + epsilon > 1.0) ? -epsilon : epsilon;
+        float2 dy = (evaluatePosition(uv + float2(0.0, stepY)) - position) / stepY;
+        
+        // Slightly higher lambda to heavily dampen oscillations in complex folds
+        float lambda = 0.025;
+        
+        // J^T * J
+        float a = dot(dx, dx) + lambda;
+        float b = dot(dx, dy);
+        float c = dot(dy, dy) + lambda;
+        
+        // J^T * error
+        float2 jte = float2(dot(dx, error), dot(dy, error));
+        
+        // Inverse of (J^T * J + lambda * I)
+        float det = a * c - b * b;
         float2 delta = float2(
-            (error.x * dy.y - error.y * dy.x) / determinant,
-            (dx.x * error.y - dx.y * error.x) / determinant
+            (c * jte.x - b * jte.y) / det,
+            (a * jte.y - b * jte.x) / det
         );
+        
+        // Limit the step size strictly to 20% of UV space to prevent 
+        // the solver from ping-ponging out of a fold crease.
+        delta = clamp(delta, float2(-0.2, -0.2), float2(0.2, 0.2));
+        
         uv -= delta;
-        uv = clamp(uv, 0.0, 1.0);
-        if (dot(delta, delta) < 1e-6) break;
+        uv = clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0));
     }
 
     // Evaluate patch colors in perceptual gamma / sRGB space (un-premultiplied)
-    half4 col = half4(clamp(evaluateColor(uv), 0.0, 1.0));
+    half4 col = half4(clamp(evaluateColor(uv), float4(0.0, 0.0, 0.0, 0.0), float4(1.0, 1.0, 1.0, 1.0)));
 
     // Convert perceptual sRGB to linear working space so Skia's output to sRGB framebuffer
     // preserves the exact original non-linear GLES20 color blending curve without washing out.
