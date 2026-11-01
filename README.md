@@ -5,7 +5,9 @@
 
 ComposeMeshGradient is a lightweight, powerful Compose Multiplatform library that brings beautiful, animated, and static mesh gradients to Android, iOS, Desktop/JVM, and Web, inspired by the stunning visuals of SwiftUI. Create fluid, vibrant, and interactive backgrounds with a simple and intuitive API.
 
-The library uses Compose's native Skia-backed Canvas and vertex rendering, so the same API and interpolation are shared across every target.
+The library uses a cached SkSL runtime shader through Compose's native Skia-backed `ShaderBrush`
+pipeline, so bicubic interpolation runs per pixel without CPU tessellation seams. Android API 33+
+uses `RuntimeShader`; Desktop, iOS, and Web use Skia's `RuntimeEffect`.
 
 ---
 
