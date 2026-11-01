@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import kotlin.random.Random
 
 /**
@@ -27,11 +26,12 @@ data class MeshData(
  * @return An array of [Offset] points for the mesh.
  */
 fun generateMeshPoints(width: Int, height: Int, randomness: Float = 0.1f): Array<Offset> {
+    require(width > 1 && height > 1) { "Mesh dimensions must be greater than 1" }
     require(randomness in 0f..1f) { "Randomness must be between 0.0 and 1.0" }
 
     return Array(width * height) { i ->
         val col = i % width
-        val row = i / height
+        val row = i / width
 
         val isBorder = row == 0 || row == height - 1 || col == 0 || col == width - 1
 
@@ -68,6 +68,7 @@ fun generateMeshColors(
     height: Int,
     colorVariance: Float = 0.0f
 ): Array<Color> {
+    require(width > 1 && height > 1) { "Mesh dimensions must be greater than 1" }
     require(baseColors.isNotEmpty() && baseColors.size <= 2) { "baseColors list must contain 1 or 2 colors." }
     require(colorVariance in 0f..1f) { "colorVariance must be between 0.0 and 1.0" }
 
@@ -135,15 +136,12 @@ fun rememberThemedMeshData(
  * Applies random variance to a color's HSL values.
  */
 private fun applyColorVariance(color: Color, variance: Float): Color {
-    val hsl = FloatArray(3)
-    android.graphics.Color.colorToHSV(color.toArgb(), hsl)
-
-    // Randomly adjust Hue and Lightness
-    val hueShift = (Random.nextFloat() * 2f - 1f) * 10f * variance // +/- 10 degrees
-    val lightnessShift = (Random.nextFloat() * 2f - 1f) * 0.2f * variance // +/- 20%
-
-    hsl[0] = (hsl[0] + hueShift).mod(360f)
-    hsl[2] = (hsl[2] + lightnessShift).coerceIn(0f, 1f)
-
-    return Color(android.graphics.Color.HSVToColor(hsl))
+    val hueShift = (Random.nextFloat() * 2f - 1f) * variance
+    val lightnessShift = (Random.nextFloat() * 2f - 1f) * 0.2f * variance
+    return Color(
+        (color.red + hueShift).coerceIn(0f, 1f),
+        (color.green + lightnessShift).coerceIn(0f, 1f),
+        (color.blue - hueShift).coerceIn(0f, 1f),
+        color.alpha
+    )
 }

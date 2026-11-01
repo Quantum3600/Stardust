@@ -93,8 +93,8 @@ internal object MeshInterpolation {
 
                 for (i in 0 until subdivX) {
                     val t = i / subdivX.toFloat()
-                    val px = catmullRom(p0.x, p1.x, p2.x, p3.x, t) * 2f - 1f
-                    val py = catmullRom(p0.y, p1.y, p2.y, p3.y, t) * 2f - 1f
+                    val px = catmullRom(p0.x, p1.x, p2.x, p3.x, t)
+                    val py = catmullRom(p0.y, p1.y, p2.y, p3.y, t)
                     val col = catmullRomColor(c0, c1, c2, c3, t)
 
                     val ix = gx * subdivX + i

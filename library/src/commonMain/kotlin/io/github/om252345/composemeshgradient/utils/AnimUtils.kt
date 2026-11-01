@@ -85,7 +85,7 @@ fun rememberSimplexAnimatedMesh(
 
                 for (i in targetPoints.indices) {
                     val col = i % width
-                    val row = i / height
+                    val row = i / width
                     val isBorder = row == 0 || row == height - 1 || col == 0 || col == width - 1
 
                     if (isBorder) {
