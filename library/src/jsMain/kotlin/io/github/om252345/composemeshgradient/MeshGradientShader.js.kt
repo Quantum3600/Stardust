@@ -5,6 +5,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 import org.jetbrains.skia.Shader
@@ -15,7 +16,8 @@ internal actual class MeshGradientShader actual constructor(
 ) {
     private val effect = RuntimeEffect.makeForShader(MeshGradientShaderSource)
     private val builder = RuntimeShaderBuilder(effect)
-    private val pointUniforms = FloatArray(maxControlPoints * 4)
+    private val maxPackedPoints = (maxControlPoints + 1) / 2
+    private val pointUniforms = FloatArray(maxPackedPoints * 4)
     private val colorUniforms = FloatArray(maxControlPoints * 4)
     private var dirty = true
     private var currentBrush: Brush? = null
@@ -25,21 +27,22 @@ internal actual class MeshGradientShader actual constructor(
     actual fun update(points: Array<Offset>, colors: Array<Color>) {
         var changed = dirty
         for (i in points.indices) {
-            val p = i * 4
+            val px = i * 2
+            val cx = i * 4
             val point = points[i]
             val color = colors[i]
-            if (pointUniforms[p] != point.x || pointUniforms[p + 1] != point.y ||
-                colorUniforms[p] != color.red || colorUniforms[p + 1] != color.green ||
-                colorUniforms[p + 2] != color.blue || colorUniforms[p + 3] != color.alpha
-            ) changed = true
-            pointUniforms[p] = point.x
-            pointUniforms[p + 1] = point.y
-            pointUniforms[p + 2] = 0f
-            pointUniforms[p + 3] = 0f
-            floatArrayOf(color.red, color.green, color.blue, color.alpha).copyInto(
-                colorUniforms,
-                destinationOffset = p,
-            )
+            if (pointUniforms[px] != point.x || pointUniforms[px + 1] != point.y ||
+                colorUniforms[cx] != color.red || colorUniforms[cx + 1] != color.green ||
+                colorUniforms[cx + 2] != color.blue || colorUniforms[cx + 3] != color.alpha
+            ) {
+                changed = true
+            }
+            pointUniforms[px] = point.x
+            pointUniforms[px + 1] = point.y
+            colorUniforms[cx] = color.red
+            colorUniforms[cx + 1] = color.green
+            colorUniforms[cx + 2] = color.blue
+            colorUniforms[cx + 3] = color.alpha
         }
         if (changed) {
             dirty = true
@@ -55,7 +58,7 @@ internal actual class MeshGradientShader actual constructor(
         builder.uniform("uResolution", size.width, size.height)
         builder.uniform("uWidth", width)
         builder.uniform("uHeight", height)
-        builder.uniform("uPoints", pointUniforms)
+        builder.uniform("uPackedPoints", pointUniforms)
         builder.uniform("uColors", colorUniforms)
         currentShader?.close()
         currentShader = builder.makeShader()
@@ -66,7 +69,17 @@ internal actual class MeshGradientShader actual constructor(
         return currentBrush!!
     }
 
+    actual fun draw(drawScope: DrawScope) {
+        drawScope.drawRect(brush = brush(drawScope.size))
+    }
+
+    actual fun close() {
+        currentShader?.close()
+        currentShader = null
+        currentBrush = null
+    }
+
     actual companion object {
-        actual val maxControlPoints: Int = 64
+        actual val maxControlPoints: Int = 25
     }
 }

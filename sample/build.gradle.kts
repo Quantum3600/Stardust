@@ -29,8 +29,10 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.ktx)
             implementation(libs.androidx.activity.compose)
         }
-        desktopMain.dependencies {
-            implementation(compose.desktop.currentOs)
+        val desktopMain by getting {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+            }
         }
     }
 }

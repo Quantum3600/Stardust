@@ -2,6 +2,7 @@ package io.github.om252345.composemeshgradient
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -36,6 +37,12 @@ fun MeshGradient(
         MeshGradientShader(width, height)
     }
 
+    DisposableEffect(shader) {
+        onDispose {
+            shader.close()
+        }
+    }
+
     Canvas(modifier) {
         shader.update(points, colors)
         drawMeshGradient(shader)
@@ -61,12 +68,14 @@ fun MeshGradient(
 }
 
 private fun DrawScope.drawMeshGradient(shader: MeshGradientShader) {
-    drawRect(brush = shader.brush(size))
+    shader.draw(this)
 }
 
 internal expect class MeshGradientShader(width: Int, height: Int) {
     fun update(points: Array<Offset>, colors: Array<Color>)
     fun brush(size: androidx.compose.ui.geometry.Size): Brush
+    fun draw(drawScope: DrawScope)
+    fun close()
 
     companion object {
         val maxControlPoints: Int

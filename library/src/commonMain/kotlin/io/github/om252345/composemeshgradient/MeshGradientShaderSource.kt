@@ -4,8 +4,8 @@ internal const val MeshGradientShaderSource = """
 uniform float2 uResolution;
 uniform int uWidth;
 uniform int uHeight;
-uniform float4 uPoints[64];
-uniform float4 uColors[64];
+uniform float4 uPackedPoints[13];
+uniform float4 uColors[25];
 
 float catmullRom(float p0, float p1, float p2, float p3, float t) {
     float t2 = t * t;
@@ -23,11 +23,21 @@ int pointIndex(int x, int y) {
 }
 
 float2 pointAt(int x, int y) {
-    return uPoints[pointIndex(x, y)].xy;
+    int idx = pointIndex(x, y);
+    int pairIndex = idx / 2;
+    float4 packedPair = uPackedPoints[pairIndex];
+    return (idx % 2 == 0) ? packedPair.xy : packedPair.zw;
 }
 
 float4 colorAt(int x, int y) {
     return uColors[pointIndex(x, y)];
+}
+
+// Perform color mixing in perceptual gamma space to match raw GLES20 vertex blending
+half4 blendMeshColors(half4 c1, half4 c2, half4 c3, half4 c4, float u, float v) {
+    half4 top = mix(c1, c2, u);
+    half4 bottom = mix(c3, c4, u);
+    return mix(top, bottom, v);
 }
 
 float2 interpolatePointRow(int x, int y, float t) {
@@ -90,6 +100,14 @@ float4 evaluateColor(float2 uv) {
     );
 }
 
+float srgbToLinear(float c) {
+    return (c <= 0.04045) ? (c / 12.92) : pow((c + 0.055) / 1.055, 2.4);
+}
+
+half3 toLinear(half3 c) {
+    return half3(srgbToLinear(float(c.r)), srgbToLinear(float(c.g)), srgbToLinear(float(c.b)));
+}
+
 half4 main(float2 coord) {
     float2 target = clamp(coord / uResolution, 0.0, 1.0);
     float2 uv = target;
@@ -113,6 +131,14 @@ half4 main(float2 coord) {
         if (dot(delta, delta) < 1e-6) break;
     }
 
-    return half4(evaluateColor(uv));
+    // Evaluate patch colors in perceptual gamma / sRGB space (un-premultiplied)
+    half4 col = half4(clamp(evaluateColor(uv), 0.0, 1.0));
+
+    // Convert perceptual sRGB to linear working space so Skia's output to sRGB framebuffer
+    // preserves the exact original non-linear GLES20 color blending curve without washing out.
+    half3 linearRgb = toLinear(col.rgb);
+
+    // Premultiply alpha right before returning from main()
+    return half4(linearRgb * col.a, col.a);
 }
 """

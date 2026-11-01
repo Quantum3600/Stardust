@@ -22,9 +22,7 @@ internal object MeshInterpolation {
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as MeshResult
+            if (other !is MeshResult) return false
 
             if (!vertices.contentEquals(other.vertices)) return false
             if (!colors.contentEquals(other.colors)) return false
