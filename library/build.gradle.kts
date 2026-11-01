@@ -1,7 +1,8 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.compose)
     alias(libs.plugins.vanniktech.maven.publish)
 }
 
@@ -10,45 +11,36 @@ version = "0.3.0"
 android {
     namespace = "io.github.om252345.composemeshgradient"
     compileSdk = 35
-
     defaultConfig {
         minSdk = 21
-        testInstrumentationRunner = "android.support.test.runner.AndroidJUnitRunner"
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
     }
 }
 
-dependencies {
-    implementation(libs.androidx.appcompat)
-    implementation(libs.core.ktx)
-    // Compose BOM
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.runner)
-    androidTestImplementation(libs.espresso.core)
+kotlin {
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
+    }
+    jvm("desktop")
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+    wasmJs {
+        browser()
+    }
+    js(IR) {
+        browser()
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.ui)
+            implementation(compose.animation)
+        }
+    }
 }
 
 
@@ -59,7 +51,7 @@ mavenPublishing {
 
     pom {
         name.set("Compose Mesh Gradient")
-        description.set("An Android Compose library for mesh gradients.")
+        description.set("A Compose Multiplatform library for mesh gradients.")
         url.set("https://github.com/om252345/composemeshgradient")
         licenses {
             license {
