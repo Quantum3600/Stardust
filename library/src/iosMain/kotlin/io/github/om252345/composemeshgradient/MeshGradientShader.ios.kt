@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
+import org.jetbrains.skia.Shader
 
 internal actual class MeshGradientShader actual constructor(
     private val width: Int,
@@ -19,6 +20,7 @@ internal actual class MeshGradientShader actual constructor(
     private var dirty = true
     private var currentBrush: Brush? = null
     private var currentSize = Size.Unspecified
+    private var currentShader: Shader? = null
 
     actual fun update(points: Array<Offset>, colors: Array<Color>) {
         var changed = dirty
@@ -34,14 +36,16 @@ internal actual class MeshGradientShader actual constructor(
             pointUniforms[p + 1] = point.y
             pointUniforms[p + 2] = 0f
             pointUniforms[p + 3] = 0f
-            colorUniforms[p] = color.red
-            colorUniforms[p + 1] = color.green
-            colorUniforms[p + 2] = color.blue
-            colorUniforms[p + 3] = color.alpha
+            floatArrayOf(color.red, color.green, color.blue, color.alpha).copyInto(
+                colorUniforms,
+                destinationOffset = p,
+            )
         }
         if (changed) {
             dirty = true
             currentBrush = null
+            currentShader?.close()
+            currentShader = null
         }
     }
 
@@ -53,9 +57,10 @@ internal actual class MeshGradientShader actual constructor(
         builder.uniform("uHeight", height)
         builder.uniform("uPoints", pointUniforms)
         builder.uniform("uColors", colorUniforms)
-        val shader = builder.makeShader()
+        currentShader?.close()
+        currentShader = builder.makeShader()
         currentBrush = object : ShaderBrush() {
-            override fun createShader(size: Size): androidx.compose.ui.graphics.Shader = shader
+            override fun createShader(size: Size): androidx.compose.ui.graphics.Shader = currentShader!!
         }
         dirty = false
         return currentBrush!!

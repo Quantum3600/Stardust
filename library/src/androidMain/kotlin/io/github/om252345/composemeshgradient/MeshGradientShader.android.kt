@@ -42,10 +42,10 @@ internal actual class MeshGradientShader actual constructor(
             pointUniforms[pointOffset + 1] = point.y
             pointUniforms[pointOffset + 2] = 0f
             pointUniforms[pointOffset + 3] = 0f
-            colorUniforms[colorOffset] = color.red
-            colorUniforms[colorOffset + 1] = color.green
-            colorUniforms[colorOffset + 2] = color.blue
-            colorUniforms[colorOffset + 3] = color.alpha
+            floatArrayOf(color.red, color.green, color.blue, color.alpha).copyInto(
+                colorUniforms,
+                destinationOffset = colorOffset,
+            )
         }
         fallbackStart = colors.firstOrNull() ?: Color.Transparent
         fallbackEnd = colors.lastOrNull() ?: Color.Transparent
