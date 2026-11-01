@@ -97,19 +97,20 @@ half4 main(float2 coord) {
 
     // Invert the warped bicubic surface with a few Newton iterations. This keeps the draw as one
     // full-bounds rectangle while preserving the control-point deformation per fragment.
-    for (int iteration = 0; iteration < 4; iteration++) {
+    for (int iteration = 0; iteration < 5; iteration++) {
         float2 position = evaluatePosition(uv);
         float2 dx = (evaluatePosition(clamp(uv + float2(epsilon, 0.0), 0.0, 1.0)) - position) / epsilon;
         float2 dy = (evaluatePosition(clamp(uv + float2(0.0, epsilon), 0.0, 1.0)) - position) / epsilon;
         float determinant = dx.x * dy.y - dx.y * dy.x;
-        if (abs(determinant) > 0.00001) {
-            float2 error = position - target;
-            uv -= float2(
-                (error.x * dy.y - error.y * dy.x) / determinant,
-                (dx.x * error.y - dx.y * error.x) / determinant
-            );
-            uv = clamp(uv, 0.0, 1.0);
-        }
+        if (abs(determinant) < 1e-5) break;
+        float2 error = position - target;
+        float2 delta = float2(
+            (error.x * dy.y - error.y * dy.x) / determinant,
+            (dx.x * error.y - dx.y * error.x) / determinant
+        );
+        uv -= delta;
+        uv = clamp(uv, 0.0, 1.0);
+        if (dot(delta, delta) < 1e-6) break;
     }
 
     return half4(evaluateColor(uv));
