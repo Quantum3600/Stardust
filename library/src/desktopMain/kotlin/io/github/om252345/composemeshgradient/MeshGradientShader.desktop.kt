@@ -24,8 +24,14 @@ internal actual class MeshGradientShader actual constructor(
     private var currentSize = Size.Unspecified
     private var currentShader: Shader? = null
 
-    actual fun update(points: Array<Offset>, colors: Array<Color>) {
+    private var currentNoiseAlpha: Float = 0f
+
+    actual fun update(points: Array<Offset>, colors: Array<Color>, noiseAlpha: Float) {
         var changed = dirty
+        if (currentNoiseAlpha != noiseAlpha) {
+            currentNoiseAlpha = noiseAlpha
+            changed = true
+        }
         for (i in points.indices) {
             val px = i * 2
             val cx = i * 4
@@ -60,6 +66,7 @@ internal actual class MeshGradientShader actual constructor(
         builder.uniform("uHeight", height)
         builder.uniform("uPackedPoints", pointUniforms)
         builder.uniform("uColors", colorUniforms)
+        builder.uniform("uNoiseAlpha", currentNoiseAlpha)
         currentShader?.close()
         currentShader = builder.makeShader()
         currentBrush = object : ShaderBrush() {

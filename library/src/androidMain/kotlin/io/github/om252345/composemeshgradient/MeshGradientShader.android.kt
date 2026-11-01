@@ -53,8 +53,14 @@ internal actual class MeshGradientShader actual constructor(
     private var fallbackDirty = true
     private var fallbackSize = Size.Unspecified
 
-    actual fun update(points: Array<Offset>, colors: Array<Color>) {
+    private var currentNoiseAlpha: Float = 0f
+
+    actual fun update(points: Array<Offset>, colors: Array<Color>, noiseAlpha: Float) {
         var changed = dirty
+        if (currentNoiseAlpha != noiseAlpha) {
+            currentNoiseAlpha = noiseAlpha
+            changed = true
+        }
         for (i in points.indices) {
             val point = points[i]
             val color = colors[i]
@@ -102,6 +108,7 @@ internal actual class MeshGradientShader actual constructor(
                 resolution = floatArrayOf(size.width, size.height),
                 points = pointUniforms,
                 colors = colorUniforms,
+                noiseAlpha = currentNoiseAlpha,
             )
             currentBrush = object : ShaderBrush() {
                 override fun createShader(size: Size): androidx.compose.ui.graphics.Shader = shader
@@ -341,6 +348,12 @@ private object RuntimeShaderReflection {
         Int::class.javaPrimitiveType,
     )
 
+    private val setFloatUniformScalar: Method? = runtimeShaderClass?.getMethod(
+        "setFloatUniform",
+        String::class.java,
+        Float::class.javaPrimitiveType,
+    )
+
     fun create(
         source: String,
         width: Int,
@@ -348,6 +361,7 @@ private object RuntimeShaderReflection {
         resolution: FloatArray,
         points: FloatArray,
         colors: FloatArray,
+        noiseAlpha: Float,
     ): Shader {
         val instance = requireNotNull(constructor).newInstance(source)
         requireNotNull(setFloatUniform).invoke(instance, "uResolution", resolution)
@@ -355,6 +369,7 @@ private object RuntimeShaderReflection {
         requireNotNull(setIntUniform).invoke(instance, "uHeight", height)
         requireNotNull(setFloatUniform).invoke(instance, "uPackedPoints", points)
         requireNotNull(setFloatUniform).invoke(instance, "uColors", colors)
+        requireNotNull(setFloatUniformScalar).invoke(instance, "uNoiseAlpha", noiseAlpha)
         return instance as Shader
     }
 }

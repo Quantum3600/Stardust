@@ -113,6 +113,7 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
         width = width,
         height = height,
         state = meshState,
+        noiseAlpha = 0.05f, // Added a subtle noise grain effect
     )
 }
 

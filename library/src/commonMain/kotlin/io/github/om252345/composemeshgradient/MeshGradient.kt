@@ -25,6 +25,7 @@ fun MeshGradient(
     points: Array<Offset>,
     colors: Array<Color>,
     @Suppress("UNUSED_PARAMETER") globalSubdivisions: Int = 32,
+    noiseAlpha: Float = 0f,
 ) {
     require(width > 1 && height > 1) { "Mesh dimensions must be greater than 1" }
     require(points.size == width * height) { "points must contain width * height items" }
@@ -32,6 +33,7 @@ fun MeshGradient(
     require(width * height <= MeshGradientShader.maxControlPoints) {
         "Mesh gradients support at most ${MeshGradientShader.maxControlPoints} control points"
     }
+    require(noiseAlpha in 0f..1f) { "noiseAlpha must be between 0.0 and 1.0" }
 
     val shader = remember(width, height) {
         MeshGradientShader(width, height)
@@ -44,7 +46,7 @@ fun MeshGradient(
     }
 
     Canvas(modifier) {
-        shader.update(points, colors)
+        shader.update(points, colors, noiseAlpha)
         drawMeshGradient(shader)
     }
 }
@@ -55,6 +57,7 @@ fun MeshGradient(
     width: Int,
     height: Int,
     @Suppress("UNUSED_PARAMETER") globalSubdivisions: Int = 32,
+    noiseAlpha: Float = 0f,
     state: MeshGradientState,
 ) {
     MeshGradient(
@@ -62,6 +65,7 @@ fun MeshGradient(
         width = width,
         height = height,
         globalSubdivisions = globalSubdivisions,
+        noiseAlpha = noiseAlpha,
         points = state.points.toTypedArray(),
         colors = state.colors.toTypedArray(),
     )
@@ -72,7 +76,7 @@ private fun DrawScope.drawMeshGradient(shader: MeshGradientShader) {
 }
 
 internal expect class MeshGradientShader(width: Int, height: Int) {
-    fun update(points: Array<Offset>, colors: Array<Color>)
+    fun update(points: Array<Offset>, colors: Array<Color>, noiseAlpha: Float = 0f)
     fun brush(size: androidx.compose.ui.geometry.Size): Brush
     fun draw(drawScope: DrawScope)
     fun close()

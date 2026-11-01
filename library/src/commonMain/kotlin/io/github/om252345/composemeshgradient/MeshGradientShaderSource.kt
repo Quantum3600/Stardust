@@ -6,9 +6,15 @@ uniform int uWidth;
 uniform int uHeight;
 uniform float4 uPackedPoints[13];
 uniform float4 uColors[25];
+uniform float uNoiseAlpha;
 
 int clampInt(int val, int minVal, int maxVal) {
     return val < minVal ? minVal : (val > maxVal ? maxVal : val);
+}
+
+// Pseudo-random noise function
+float random(float2 st) {
+    return fract(sin(dot(st.xy, float2(12.9898, 78.233))) * 43758.5453123);
 }
 
 float catmullRom(float p0, float p1, float p2, float p3, float t) {
@@ -170,6 +176,13 @@ half4 main(float2 coord) {
 
     // Evaluate patch colors in perceptual gamma / sRGB space (un-premultiplied)
     half4 col = half4(clamp(evaluateColor(uv), float4(0.0, 0.0, 0.0, 0.0), float4(1.0, 1.0, 1.0, 1.0)));
+
+    // Apply optional noise grain
+    if (uNoiseAlpha > 0.0) {
+        float noise = random(coord);
+        // Blend noise with the color, keeping the alpha intact
+        col.rgb = mix(col.rgb, half3(noise), half(uNoiseAlpha));
+    }
 
     // Convert perceptual sRGB to linear working space so Skia's output to sRGB framebuffer
     // preserves the exact original non-linear GLES20 color blending curve without washing out.
