@@ -8,10 +8,10 @@ plugins {
     alias(libs.plugins.vanniktech.maven.publish)
 }
 
-group = "io.github.om252345"
-version = "0.3.0"
+group = "io.github.quantum3600"
+version = "1.0.3"
 android {
-    namespace = "io.github.om252345.composemeshgradient"
+    namespace = "io.github.quantum3600.stardust"
     compileSdk = 35
     defaultConfig {
         minSdk = 21

@@ -58,20 +58,20 @@ kotlin {
 }
 
 android {
-    namespace = "github.om252345.composemeshgradient"
+    namespace = "io.github.quantum3600.stardust"
     compileSdk = 35
     defaultConfig {
-        applicationId = "dev.omdev.composemeshgradient"
+        applicationId = "com.trishit.composemeshgradient"
         minSdk = 28
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.3"
     }
 }
 
 compose.desktop {
     application {
-        mainClass = "github.om252345.composemeshgradient.DesktopMainKt"
+        mainClass = "io.github.quantum3600.stardust.DesktopMainKt"
         jvmArgs("-Xms64m", "-Xmx512m")
     }
 }

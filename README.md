@@ -1,7 +1,7 @@
 # ComposeMeshGradient: SwiftUI-like Mesh Gradients for Compose Multiplatform
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.om252345/composemeshgradient.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.om252345%22%20AND%20a:%22composemeshgradient%22)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.quantum3600/composemeshgradient.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.quantum3600%22%20AND%20a:%22composemeshgradient%22)
 
 ComposeMeshGradient is a lightweight, powerful Compose Multiplatform library that brings beautiful, animated, and static mesh gradients to Android, iOS, Desktop/JVM, and Web, inspired by the stunning visuals of SwiftUI. Create fluid, vibrant, and interactive backgrounds with a simple and intuitive API.
 
@@ -57,14 +57,14 @@ Add the dependency to your module's `build.gradle.kts` or `build.gradle` file. T
 **build.gradle.kts (Kotlin DSL)**
 ```kotlin
 dependencies {
-    implementation("io.github.om252345:composemeshgradient:0.3.0") // Replace with the latest version
+    implementation("io.github.quantum3600:composemeshgradient:0.3.0") // Replace with the latest version
 }
 ```
 
 **build.gradle (Groovy DSL)**
 ```groovy
 dependencies {
-    implementation 'io.github.om252345:composemeshgradient:0.3.0' // Replace with the latest version
+    implementation 'io.github.quantum3600:composemeshgradient:0.3.0' // Replace with the latest version
 }
 ```
 
@@ -90,7 +90,7 @@ A simple 2x2 grid is the most basic mesh, creating a beautiful blend between fou
 kotlin
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.om252345.composemeshgradient.MeshGradient
+import io.github.quantum3600.stardust.MeshGradient
 
 @Composable
 fun Static2x2Mesh() {
@@ -118,7 +118,7 @@ By increasing the grid size, you can create more complex and nuanced color inter
 kotlin
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.om252345.composemeshgradient.MeshGradient
+import io.github.quantum3600.stardust.MeshGradient
 
 @Composable
 fun Static3x3Mesh() {
@@ -148,7 +148,7 @@ A 4x4 grid offers even more control for intricate designs.
 kotlin
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.om252345.composemeshgradient.MeshGradient
+import io.github.quantum3600.stardust.MeshGradient
 
 @Composable
 fun Static4x4Mesh() {
@@ -189,7 +189,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.om252345.composemeshgradient.MeshGradient
+import io.github.quantum3600.stardust.MeshGradient
 
 @Composable
 fun AnimatedColorMesh() {
@@ -240,8 +240,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.om252345.composemeshgradient.MeshGradient
-import io.github.om252345.composemeshgradient.utils.animateOffset
+import io.github.quantum3600.stardust.MeshGradient
+import io.github.quantum3600.stardust.utils.animateOffset
 
 @Composable
 fun AnimatedPointMesh() {
@@ -285,9 +285,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.om252345.composemeshgradient.MeshGradient
-import io.github.om252345.composemeshgradient.rememberMeshGradientState
-import io.github.om252345.composemeshgradient.utils.SimplexNoise
+import io.github.quantum3600.stardust.MeshGradient
+import io.github.quantum3600.stardust.rememberMeshGradientState
+import io.github.quantum3600.stardust.utils.SimplexNoise
 import kotlinx.coroutines.launch
 
 @Composable
