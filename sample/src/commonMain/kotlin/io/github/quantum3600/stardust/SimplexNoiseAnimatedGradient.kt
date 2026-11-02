@@ -10,11 +10,10 @@ import androidx.compose.ui.graphics.Color
 import io.github.quantum3600.stardust.StardustMesh
 import io.github.quantum3600.stardust.rememberMeshGradientState
 import io.github.quantum3600.stardust.utils.SimplexNoise
-import kotlinx.coroutines.launch
 
 /**
  * A composable that demonstrates a fluid, continuous animation of a mesh gradient
- * using Simplex Noise, similar to the original implementation.
+ * using Simplex Noise with zero heap allocations and synchronized VSYNC frame updates.
  */
 @Composable
 fun SimplexNoiseMeshExample(modifier: Modifier) {
@@ -40,7 +39,8 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
     }
 
     // A stable copy of the original points to base noise calculations on
-    val basePoints = remember { initialPoints.toList() }
+    val basePointsX = remember { FloatArray(width * height) { i -> initialPoints[i].x } }
+    val basePointsY = remember { FloatArray(width * height) { i -> initialPoints[i].y } }
 
     // 2. Create and remember the state that will drive the animation
     val meshState =
@@ -49,14 +49,17 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
     // 3. Use a LaunchedEffect to run the continuous animation loop
     LaunchedEffect(Unit) {
         var time = 0f
-        var currentPoints = initialPoints.toMutableList()
-        val targetPoints = initialPoints.toMutableList()
+        val currentPointsX = basePointsX.copyOf()
+        val currentPointsY = basePointsY.copyOf()
+        val targetPointsX = basePointsX.copyOf()
+        val targetPointsY = basePointsY.copyOf()
+        val framePoints = FloatArray(width * height * 2)
 
         var lastFrameTime = 0L
 
-        // This loop runs for every frame, creating a smooth animation
+        // This loop runs synchronized to VSYNC with zero suspensions and zero allocations
         while (true) {
-            val nextFramePoints = withFrameNanos { frameTime ->
+            withFrameNanos { frameTime ->
                 if (lastFrameTime == 0L) {
                     lastFrameTime = frameTime
                 }
@@ -64,38 +67,35 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
                 lastFrameTime = frameTime
                 time += deltaTime
 
-                // a. Calculate new target positions with Simplex Noise
                 val animationSpeed = 0.15f
-                for (i in targetPoints.indices) {
+                for (i in 0 until (width * height)) {
                     val col = i % width
                     val row = i / width
                     val isBorder = row == 0 || row == height - 1 || col == 0 || col == width - 1
 
                     if (isBorder) {
-                        targetPoints[i] = basePoints[i]
+                        targetPointsX[i] = basePointsX[i]
+                        targetPointsY[i] = basePointsY[i]
                     } else {
-                        val bp = basePoints[i]
-                        val noiseX =
-                            SimplexNoise.noise(bp.x * 1.5f, time * animationSpeed + i) * 0.12f
-                        val noiseY =
-                            SimplexNoise.noise(bp.y * 1.5f, time * animationSpeed + i + 100f) * 0.12f
-                        targetPoints[i] = Offset(bp.x + noiseX, bp.y + noiseY)
+                        val bx = basePointsX[i]
+                        val by = basePointsY[i]
+                        val noiseX = SimplexNoise.noise(bx * 1.5f, time * animationSpeed + i) * 0.12f
+                        val noiseY = SimplexNoise.noise(by * 1.5f, time * animationSpeed + i + 100f) * 0.12f
+                        targetPointsX[i] = bx + noiseX
+                        targetPointsY[i] = by + noiseY
                     }
                 }
 
-                // b. Smoothly interpolate the current points towards the moving target
-                val smoothingFactor = 4f
-                for (i in currentPoints.indices) {
-                    currentPoints[i] = lerp(
-                        currentPoints[i],
-                        targetPoints[i],
-                        (smoothingFactor * deltaTime).coerceIn(0f, 1f)
-                    )
+                val factor = (4f * deltaTime).coerceIn(0f, 1f)
+                for (i in 0 until (width * height)) {
+                    currentPointsX[i] = currentPointsX[i] + (targetPointsX[i] - currentPointsX[i]) * factor
+                    currentPointsY[i] = currentPointsY[i] + (targetPointsY[i] - currentPointsY[i]) * factor
+                    framePoints[i * 2] = currentPointsX[i]
+                    framePoints[i * 2 + 1] = currentPointsY[i]
                 }
 
-                currentPoints.toList()
+                meshState.snapAllPoints(framePoints)
             }
-            meshState.snapAllPoints(nextFramePoints)
         }
     }
 
@@ -105,13 +105,6 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
         width = width,
         height = height,
         state = meshState,
-        dustIntensity = 0.05f, // Added a subtle noise grain effect
+        dustIntensity = 0.05f,
     )
-}
-
-/**
- * Helper function for linear interpolation between two Offsets.
- */
-private fun lerp(start: Offset, stop: Offset, fraction: Float): Offset {
-    return start + (stop - start) * fraction.coerceIn(0f, 1f)
 }

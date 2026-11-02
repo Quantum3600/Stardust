@@ -68,7 +68,7 @@ mavenPublishing {
     pom {
         name.set("Stardust - Mesh Gradient for Multiplatform")
         description.set("A dynamic mesh gradient library for Compose Multiplatform.")
-        url.set("https://github.com/quantum3600/composemeshgradient")
+        url.set("https://github.com/quantum3600/stardust")
         licenses {
             license {
                 name.set("The Apache License, Version 2.0")

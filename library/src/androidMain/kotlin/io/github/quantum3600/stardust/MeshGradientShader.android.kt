@@ -8,10 +8,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.unit.IntSize
 import io.github.quantum3600.stardust.utils.MeshInterpolation
 import io.github.quantum3600.stardust.utils.computeDefaultTangents
 import io.github.quantum3600.stardust.utils.lerp
@@ -60,6 +64,10 @@ internal actual class MeshGradientShader actual constructor(
     private var currentDustIntensity: Float = 0f
     private var currentDustPhase: Float = 0f
 
+    private var offscreenBitmap: ImageBitmap? = null
+    private var offscreenCanvas: androidx.compose.ui.graphics.Canvas? = null
+    private val offscreenScope = CanvasDrawScope()
+
     actual fun update(
         points: Array<Offset>,
         colors: Array<Color>,
@@ -78,6 +86,38 @@ internal actual class MeshGradientShader actual constructor(
             changed = true
         }
 
+        var pointsChanged = false
+        val pointCount = minOf(points.size, maxControlPoints)
+        for (i in 0 until pointCount) {
+            val point = points[i]
+            val px = i * 2
+            if (pointUniforms[px] != point.x || pointUniforms[px + 1] != point.y) {
+                pointsChanged = true
+                pointUniforms[px] = point.x
+                pointUniforms[px + 1] = point.y
+            }
+            cachedPoints[i] = point
+        }
+        if (pointsChanged) changed = true
+
+        val colorCount = minOf(colors.size, maxControlPoints)
+        for (i in 0 until colorCount) {
+            val color = colors[i]
+            val cx = i * 4
+            if (colorUniforms[cx] != color.red ||
+                colorUniforms[cx + 1] != color.green ||
+                colorUniforms[cx + 2] != color.blue ||
+                colorUniforms[cx + 3] != color.alpha
+            ) {
+                changed = true
+                colorUniforms[cx] = color.red
+                colorUniforms[cx + 1] = color.green
+                colorUniforms[cx + 2] = color.blue
+                colorUniforms[cx + 3] = color.alpha
+            }
+            cachedColors[i] = color
+        }
+
         if (uTangents != null && vTangents != null) {
             for (i in uTangents.indices) {
                 if (uTangentUniforms[i] != uTangents[i]) {
@@ -91,44 +131,91 @@ internal actual class MeshGradientShader actual constructor(
                     changed = true
                 }
             }
-        } else {
+        } else if (pointsChanged || dirty) {
             computeDefaultTangents(width, height, points, uTangentUniforms, vTangentUniforms)
             changed = true
         }
 
-        for (i in points.indices) {
-            val point = points[i]
-            val color = colors[i]
-
-            val px = i * 2
-            if (pointUniforms[px] != point.x || pointUniforms[px + 1] != point.y) {
-                changed = true
-            }
-            pointUniforms[px] = point.x
-            pointUniforms[px + 1] = point.y
-
-            val cx = i * 4
-            if (colorUniforms[cx] != color.red ||
-                colorUniforms[cx + 1] != color.green ||
-                colorUniforms[cx + 2] != color.blue ||
-                colorUniforms[cx + 3] != color.alpha
-            ) {
-                changed = true
-            }
-            colorUniforms[cx] = color.red
-            colorUniforms[cx + 1] = color.green
-            colorUniforms[cx + 2] = color.blue
-            colorUniforms[cx + 3] = color.alpha
-
-            cachedPoints[i] = point
-            cachedColors[i] = color
-        }
         fallbackStart = colors.firstOrNull() ?: Color.Transparent
         fallbackEnd = colors.lastOrNull() ?: Color.Transparent
         if (changed) {
             dirty = true
             fallbackDirty = true
-            currentBrush = null
+        }
+    }
+
+    actual fun update(
+        points: FloatArray,
+        colors: FloatArray,
+        uTangents: FloatArray?,
+        vTangents: FloatArray?,
+        dustIntensity: Float,
+        dustPhase: Float
+    ) {
+        var changed = dirty
+        if (currentDustIntensity != dustIntensity) {
+            currentDustIntensity = dustIntensity
+            changed = true
+        }
+        if (currentDustPhase != dustPhase) {
+            currentDustPhase = dustPhase
+            changed = true
+        }
+
+        var pointsChanged = false
+        val pointCount = minOf(points.size / 2, maxControlPoints)
+        for (i in 0 until pointCount) {
+            val px = i * 2
+            if (pointUniforms[px] != points[px] || pointUniforms[px + 1] != points[px + 1]) {
+                pointsChanged = true
+                pointUniforms[px] = points[px]
+                pointUniforms[px + 1] = points[px + 1]
+            }
+            cachedPoints[i] = Offset(points[px], points[px + 1])
+        }
+        if (pointsChanged) changed = true
+
+        val colorCount = minOf(colors.size / 4, maxControlPoints)
+        for (i in 0 until colorCount) {
+            val cx = i * 4
+            if (colorUniforms[cx] != colors[cx] ||
+                colorUniforms[cx + 1] != colors[cx + 1] ||
+                colorUniforms[cx + 2] != colors[cx + 2] ||
+                colorUniforms[cx + 3] != colors[cx + 3]
+            ) {
+                changed = true
+                colorUniforms[cx] = colors[cx]
+                colorUniforms[cx + 1] = colors[cx + 1]
+                colorUniforms[cx + 2] = colors[cx + 2]
+                colorUniforms[cx + 3] = colors[cx + 3]
+            }
+            cachedColors[i] = Color(colors[cx], colors[cx + 1], colors[cx + 2], colors[cx + 3])
+        }
+
+        if (uTangents != null && vTangents != null) {
+            for (i in uTangents.indices) {
+                if (uTangentUniforms[i] != uTangents[i]) {
+                    uTangentUniforms[i] = uTangents[i]
+                    changed = true
+                }
+            }
+            for (i in vTangents.indices) {
+                if (vTangentUniforms[i] != vTangents[i]) {
+                    vTangentUniforms[i] = vTangents[i]
+                    changed = true
+                }
+            }
+        } else if (pointsChanged || dirty) {
+            computeDefaultTangents(width, height, points, uTangentUniforms, vTangentUniforms)
+            changed = true
+        }
+
+        fallbackStart = if (colors.size >= 4) Color(colors[0], colors[1], colors[2], colors[3]) else Color.Transparent
+        fallbackEnd = if (colors.size >= 4) Color(colors[colors.size - 4], colors[colors.size - 3], colors[colors.size - 2], colors[colors.size - 1]) else Color.Transparent
+
+        if (changed) {
+            dirty = true
+            fallbackDirty = true
         }
     }
 
@@ -170,17 +257,46 @@ internal actual class MeshGradientShader actual constructor(
         return Brush.linearGradient(listOf(fallbackStart, fallbackEnd))
     }
 
-    actual fun draw(drawScope: DrawScope) {
-        if (Build.VERSION.SDK_INT >= 33 && RuntimeShaderReflection.isAvailable) {
-            drawScope.drawRect(brush = brush(drawScope.size))
+    actual fun draw(drawScope: DrawScope, downsampleFactor: Float) {
+        if (downsampleFactor in 0.1f..0.999f) {
+            val targetWidth = (drawScope.size.width * downsampleFactor).toInt().coerceAtLeast(1)
+            val targetHeight = (drawScope.size.height * downsampleFactor).toInt().coerceAtLeast(1)
+            val targetSize = Size(targetWidth.toFloat(), targetHeight.toFloat())
+
+            var bitmap = offscreenBitmap
+            if (bitmap == null || bitmap.width != targetWidth || bitmap.height != targetHeight) {
+                bitmap = ImageBitmap(targetWidth, targetHeight)
+                offscreenBitmap = bitmap
+                offscreenCanvas = androidx.compose.ui.graphics.Canvas(bitmap)
+            }
+            val canvas = offscreenCanvas!!
+            offscreenScope.draw(
+                density = drawScope,
+                layoutDirection = drawScope.layoutDirection,
+                canvas = canvas,
+                size = targetSize
+            ) {
+                drawRect(brush = brush(targetSize))
+            }
+            drawScope.drawImage(
+                image = bitmap,
+                dstSize = IntSize(drawScope.size.width.toInt(), drawScope.size.height.toInt()),
+                filterQuality = FilterQuality.Medium
+            )
         } else {
-            drawFallback(drawScope)
+            if (Build.VERSION.SDK_INT >= 33 && RuntimeShaderReflection.isAvailable) {
+                drawScope.drawRect(brush = brush(drawScope.size))
+            } else {
+                drawFallback(drawScope)
+            }
         }
     }
 
     actual fun close() {
         currentBrush = null
         runtimeShaderInstance = null
+        offscreenBitmap = null
+        offscreenCanvas = null
     }
 
     private fun initFallbackBuffers() {
