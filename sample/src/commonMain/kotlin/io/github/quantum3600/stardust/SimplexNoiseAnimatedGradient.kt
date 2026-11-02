@@ -7,7 +7,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.quantum3600.stardust.MeshGradient
+import io.github.quantum3600.stardust.StardustMesh
 import io.github.quantum3600.stardust.rememberMeshGradientState
 import io.github.quantum3600.stardust.utils.SimplexNoise
 import kotlinx.coroutines.launch
@@ -108,12 +108,12 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
     }
 
     // 4. Render the MeshGradient, feeding it the animated points from the state
-    MeshGradient(
+    StardustMesh(
         modifier = modifier,
         width = width,
         height = height,
         state = meshState,
-        noiseAlpha = 0.05f, // Added a subtle noise grain effect
+        dustIntensity = 0.05f, // Added a subtle noise grain effect
     )
 }
 

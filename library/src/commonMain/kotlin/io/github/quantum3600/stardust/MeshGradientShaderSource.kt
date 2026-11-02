@@ -1,12 +1,14 @@
 package io.github.quantum3600.stardust
 
+// language=AGSL
 internal const val MeshGradientShaderSource = """
 uniform float2 uResolution;
 uniform int uWidth;
 uniform int uHeight;
 uniform float4 uPackedPoints[13];
 uniform float4 uColors[25];
-uniform float uNoiseAlpha;
+uniform float uDustIntensity;
+uniform float uDustPhase;
 
 int clampInt(int val, int minVal, int maxVal) {
     return val < minVal ? minVal : (val > maxVal ? maxVal : val);
@@ -178,10 +180,10 @@ half4 main(float2 coord) {
     half4 col = half4(clamp(evaluateColor(uv), float4(0.0, 0.0, 0.0, 0.0), float4(1.0, 1.0, 1.0, 1.0)));
 
     // Apply optional noise grain
-    if (uNoiseAlpha > 0.0) {
-        float noise = random(coord);
+    if (uDustIntensity > 0.0) {
+        float noise = random(coord + float2(uDustPhase, uDustPhase * 0.73));
         // Blend noise with the color, keeping the alpha intact
-        col.rgb = mix(col.rgb, half3(noise), half(uNoiseAlpha));
+        col.rgb = mix(col.rgb, half3(noise), half(uDustIntensity));
     }
 
     // Convert perceptual sRGB to linear working space so Skia's output to sRGB framebuffer

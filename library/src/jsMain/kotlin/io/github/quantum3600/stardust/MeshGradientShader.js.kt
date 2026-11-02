@@ -24,12 +24,17 @@ internal actual class MeshGradientShader actual constructor(
     private var currentSize = Size.Unspecified
     private var currentShader: Shader? = null
 
-    private var currentNoiseAlpha: Float = 0f
+    private var currentDustIntensity: Float = 0f
+    private var currentDustPhase: Float = 0f
 
-    actual fun update(points: Array<Offset>, colors: Array<Color>, noiseAlpha: Float) {
+    actual fun update(points: Array<Offset>, colors: Array<Color>, dustIntensity: Float, dustPhase: Float) {
         var changed = dirty
-        if (currentNoiseAlpha != noiseAlpha) {
-            currentNoiseAlpha = noiseAlpha
+        if (currentDustIntensity != dustIntensity) {
+            currentDustIntensity = dustIntensity
+            changed = true
+        }
+        if (currentDustPhase != dustPhase) {
+            currentDustPhase = dustPhase
             changed = true
         }
         for (i in points.indices) {
@@ -66,7 +71,8 @@ internal actual class MeshGradientShader actual constructor(
         builder.uniform("uHeight", height)
         builder.uniform("uPackedPoints", pointUniforms)
         builder.uniform("uColors", colorUniforms)
-        builder.uniform("uNoiseAlpha", currentNoiseAlpha)
+        builder.uniform("uDustIntensity", currentDustIntensity)
+        builder.uniform("uDustPhase", currentDustPhase)
         currentShader?.close()
         currentShader = builder.makeShader()
         currentBrush = object : ShaderBrush() {

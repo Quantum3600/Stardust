@@ -53,12 +53,17 @@ internal actual class MeshGradientShader actual constructor(
     private var fallbackDirty = true
     private var fallbackSize = Size.Unspecified
 
-    private var currentNoiseAlpha: Float = 0f
+    private var currentDustIntensity: Float = 0f
+    private var currentDustPhase: Float = 0f
 
-    actual fun update(points: Array<Offset>, colors: Array<Color>, noiseAlpha: Float) {
+    actual fun update(points: Array<Offset>, colors: Array<Color>, dustIntensity: Float, dustPhase: Float) {
         var changed = dirty
-        if (currentNoiseAlpha != noiseAlpha) {
-            currentNoiseAlpha = noiseAlpha
+        if (currentDustIntensity != dustIntensity) {
+            currentDustIntensity = dustIntensity
+            changed = true
+        }
+        if (currentDustPhase != dustPhase) {
+            currentDustPhase = dustPhase
             changed = true
         }
         for (i in points.indices) {
@@ -108,7 +113,8 @@ internal actual class MeshGradientShader actual constructor(
                 resolution = floatArrayOf(size.width, size.height),
                 points = pointUniforms,
                 colors = colorUniforms,
-                noiseAlpha = currentNoiseAlpha,
+                dustIntensity = currentDustIntensity,
+                dustPhase = currentDustPhase,
             )
             currentBrush = object : ShaderBrush() {
                 override fun createShader(size: Size): androidx.compose.ui.graphics.Shader = shader
@@ -361,7 +367,8 @@ private object RuntimeShaderReflection {
         resolution: FloatArray,
         points: FloatArray,
         colors: FloatArray,
-        noiseAlpha: Float,
+        dustIntensity: Float,
+        dustPhase: Float,
     ): Shader {
         val instance = requireNotNull(constructor).newInstance(source)
         requireNotNull(setFloatUniform).invoke(instance, "uResolution", resolution)
@@ -369,7 +376,8 @@ private object RuntimeShaderReflection {
         requireNotNull(setIntUniform).invoke(instance, "uHeight", height)
         requireNotNull(setFloatUniform).invoke(instance, "uPackedPoints", points)
         requireNotNull(setFloatUniform).invoke(instance, "uColors", colors)
-        requireNotNull(setFloatUniformScalar).invoke(instance, "uNoiseAlpha", noiseAlpha)
+        requireNotNull(setFloatUniformScalar).invoke(instance, "uDustIntensity", dustIntensity)
+        requireNotNull(setFloatUniformScalar).invoke(instance, "uDustPhase", dustPhase)
         return instance as Shader
     }
 }

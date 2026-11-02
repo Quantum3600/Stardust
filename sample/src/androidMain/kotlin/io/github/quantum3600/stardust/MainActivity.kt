@@ -35,7 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.quantum3600.stardust.ui.theme.ComposeMeshGradientTheme
-import io.github.quantum3600.stardust.MeshGradient
+import io.github.quantum3600.stardust.StardustMesh
 import io.github.quantum3600.stardust.utils.animateOffset
 
 class MainActivity : ComponentActivity() {
@@ -167,7 +167,7 @@ fun BackgroundMeshGradient(modifier: Modifier = Modifier) {
         )
     )
 
-    MeshGradient(
+    StardustMesh(
         width = 3,
         height = 3,
         points = arrayOf(
@@ -210,7 +210,7 @@ fun Button2BackgroundMeshGradient(modifier: Modifier = Modifier) {
             repeatMode = RepeatMode.Reverse // How the animation repeats (e.g., reverses or restarts)
         )
     )
-    MeshGradient(
+    StardustMesh(
         width = 2,
         height = 2,
         points = arrayOf(

@@ -18,14 +18,15 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
  * tessellation or a triangle mesh.
  */
 @Composable
-fun MeshGradient(
+fun StardustMesh(
     modifier: Modifier = Modifier,
     width: Int,
     height: Int,
     points: Array<Offset>,
     colors: Array<Color>,
     @Suppress("UNUSED_PARAMETER") globalSubdivisions: Int = 32,
-    noiseAlpha: Float = 0f,
+    dustIntensity: Float = 0f,
+    dustAnimationSpeed: Float = 0f,
 ) {
     require(width > 1 && height > 1) { "Mesh dimensions must be greater than 1" }
     require(points.size == width * height) { "points must contain width * height items" }
@@ -33,7 +34,20 @@ fun MeshGradient(
     require(width * height <= MeshGradientShader.maxControlPoints) {
         "Mesh gradients support at most ${MeshGradientShader.maxControlPoints} control points"
     }
-    require(noiseAlpha in 0f..1f) { "noiseAlpha must be between 0.0 and 1.0" }
+    require(dustIntensity in 0f..1f) { "dustIntensity must be between 0.0 and 1.0" }
+
+    val dustPhase = remember { androidx.compose.runtime.mutableStateOf(0f) }
+    androidx.compose.runtime.LaunchedEffect(dustAnimationSpeed) {
+        if (dustAnimationSpeed > 0f) {
+            var lastTime = androidx.compose.runtime.withFrameNanos { it }
+            while (true) {
+                val frameTime = androidx.compose.runtime.withFrameNanos { it }
+                val dt = (frameTime - lastTime) / 1_000_000_000f
+                lastTime = frameTime
+                dustPhase.value += dt * dustAnimationSpeed
+            }
+        }
+    }
 
     val shader = remember(width, height) {
         MeshGradientShader(width, height)
@@ -46,26 +60,28 @@ fun MeshGradient(
     }
 
     Canvas(modifier) {
-        shader.update(points, colors, noiseAlpha)
+        shader.update(points, colors, dustIntensity, dustPhase.value)
         drawMeshGradient(shader)
     }
 }
 
 @Composable
-fun MeshGradient(
+fun StardustMesh(
     modifier: Modifier = Modifier,
     width: Int,
     height: Int,
     @Suppress("UNUSED_PARAMETER") globalSubdivisions: Int = 32,
-    noiseAlpha: Float = 0f,
+    dustIntensity: Float = 0f,
+    dustAnimationSpeed: Float = 0f,
     state: MeshGradientState,
 ) {
-    MeshGradient(
+    StardustMesh(
         modifier = modifier,
         width = width,
         height = height,
         globalSubdivisions = globalSubdivisions,
-        noiseAlpha = noiseAlpha,
+        dustIntensity = dustIntensity,
+        dustAnimationSpeed = dustAnimationSpeed,
         points = state.points.toTypedArray(),
         colors = state.colors.toTypedArray(),
     )
@@ -76,7 +92,7 @@ private fun DrawScope.drawMeshGradient(shader: MeshGradientShader) {
 }
 
 internal expect class MeshGradientShader(width: Int, height: Int) {
-    fun update(points: Array<Offset>, colors: Array<Color>, noiseAlpha: Float = 0f)
+    fun update(points: Array<Offset>, colors: Array<Color>, dustIntensity: Float = 0f, dustPhase: Float = 0f)
     fun brush(size: androidx.compose.ui.geometry.Size): Brush
     fun draw(drawScope: DrawScope)
     fun close()
