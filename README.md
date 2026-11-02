@@ -1,8 +1,9 @@
 <p align="center">
-  <img src="Assets/icon.png" width="250" alt="Stardust Logo" />
+  <img src=".github/assets/Stardust Gradient Orb.png" width="250" alt="Stardust Logo" />
 </p>
-
-<h1 align="center">Stardust</h1>
+<p align="center">
+  <img src=".github/assets/Stardust Grainy Gradient Wordmark.png" width="250" alt="Stardust Logo" />
+</p>
 <h2 align="center">SwiftUI-like Mesh Gradients & Film Grain for Compose Multiplatform</h2>
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
