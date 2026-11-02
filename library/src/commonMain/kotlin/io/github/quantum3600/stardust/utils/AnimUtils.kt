@@ -77,7 +77,7 @@ fun rememberSimplexAnimatedMesh(
         val targetPoints = initialPoints.toMutableList()
 
         while (true) {
-            withFrameNanos { frameTime ->
+            val updatedPoints = withFrameNanos { frameTime ->
                 if (lastFrameTime == 0L) lastFrameTime = frameTime
                 val deltaTime = (frameTime - lastFrameTime) / 1_000_000_000.0f
                 lastFrameTime = frameTime
@@ -113,10 +113,9 @@ fun rememberSimplexAnimatedMesh(
                     )
                 }
 
-                launch {
-                    meshState.snapAllPoints(currentPoints.toList())
-                }
+                currentPoints.toList()
             }
+            meshState.snapAllPoints(updatedPoints)
         }
     }
 

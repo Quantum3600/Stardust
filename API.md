@@ -292,3 +292,258 @@ Card(
     Text("Stardust Grain Overlay", modifier = Modifier.padding(16.dp))
 }
 ```
+
+### 3. Static Mesh Gradient Button
+```kotlin
+@Composable
+fun StaticGradientButton(
+    onClick: () -> Unit,
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(16.dp)
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier.clip(shape),
+        shape = shape,
+        color = Color.Transparent
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            StardustMesh(
+                modifier = Modifier.matchParentSize(),
+                width = 2,
+                height = 2,
+                points = arrayOf(
+                    Offset(0f, 0f), Offset(1f, 0f),
+                    Offset(0f, 1f), Offset(1f, 1f)
+                ),
+                colors = arrayOf(
+                    Color(0xFFF36E21), Color(0xFFF0A92A),
+                    Color(0xFFE73562), Color(0xFF7000FF)
+                ),
+                dustIntensity = 0.08f
+            )
+
+            Text(
+                text = text,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+```
+
+### 4. Interactive Press-Scaling Mesh Gradient Button
+```kotlin
+@Composable
+fun InteractiveGradientButton(
+    onClick: () -> Unit,
+    text: String,
+    modifier: Modifier = Modifier,
+    colors: List<Color> = listOf(Color(0xFF00F0FF), Color(0xFF7000FF), Color(0xFFFF007A), Color(0xFF390066))
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.93f else 1.0f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "buttonScale"
+    )
+
+    var time by remember { mutableFloatStateOf(0f) }
+    val speed = if (isPressed) 1.5f else 0.4f
+
+    LaunchedEffect(Unit) {
+        var lastTime = 0L
+        while (true) {
+            withFrameNanos { frameTime ->
+                if (lastTime != 0L) {
+                    time += (frameTime - lastTime) / 1_000_000_000f * speed
+                }
+                lastTime = frameTime
+            }
+        }
+    }
+
+    val points = remember(time) {
+        val w = 3; val h = 3
+        Array(w * h) { i ->
+            val col = i % w; val row = i / h
+            val px = col / (w - 1f); val py = row / (h - 1f)
+            if (row == 0 || row == h - 1 || col == 0 || col == w - 1) {
+                Offset(px, py)
+            } else {
+                val nx = SimplexNoise.noise(px * 2f + time, i.toFloat()) * 0.15f
+                val ny = SimplexNoise.noise(py * 2f + time, i + 50f) * 0.15f
+                Offset(px + nx, py + ny)
+            }
+        }
+    }
+
+    val shape = RoundedCornerShape(16.dp)
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier.scale(scale).clip(shape),
+        shape = shape,
+        interactionSource = interactionSource,
+        color = Color.Transparent
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            StardustMesh(
+                modifier = Modifier.matchParentSize(),
+                width = 3,
+                height = 3,
+                points = points,
+                colors = arrayOf(
+                    colors[0], colors[1], colors[1],
+                    colors[2], colors[3], colors[2],
+                    colors[3], colors[0], colors[3]
+                ),
+                dustIntensity = 0.08f
+            )
+
+            Text(
+                text = text,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+### 5. Loading State Mesh Gradient Card
+
+Card container where the mesh gradient flows rapidly in loading state and smoothly slows down to fixed colors when content finishes loading:
+
+```kotlin
+@Composable
+fun LoadingMeshGradientCard(
+    isLoading: Boolean,
+    onToggleLoading: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Fast animation speed when loading (2.2x), slow/calm when done (0.25x)
+    val animSpeed by animateFloatAsState(
+        targetValue = if (isLoading) 2.2f else 0.25f,
+        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+        label = "loadingSpeed"
+    )
+
+    // Smooth color palette transition from vibrant loading colors to fixed theme colors
+    val targetC0 = if (isLoading) Color(0xFF00F0FF) else Color(0xFF1E1E2E)
+    val targetC1 = if (isLoading) Color(0xFF7000FF) else Color(0xFF2A2A40)
+    val targetC2 = if (isLoading) Color(0xFFFF007A) else Color(0xFF323250)
+    val targetC3 = if (isLoading) Color(0xFF390066) else Color(0xFF181825)
+
+    val c0 by animateColorAsState(targetC0, tween(1000), label = "c0")
+    val c1 by animateColorAsState(targetC1, tween(1000), label = "c1")
+    val c2 by animateColorAsState(targetC2, tween(1000), label = "c2")
+    val c3 by animateColorAsState(targetC3, tween(1000), label = "c3")
+
+    var time by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        var lastTime = 0L
+        while (true) {
+            withFrameNanos { frameTime ->
+                if (lastTime != 0L) {
+                    val dt = (frameTime - lastTime) / 1_000_000_000f
+                    time += dt * animSpeed
+                }
+                lastTime = frameTime
+            }
+        }
+    }
+
+    val points = remember(time) {
+        val w = 3; val h = 3
+        Array(w * h) { i ->
+            val col = i % w; val row = i / h
+            val px = col / (w - 1f); val py = row / (h - 1f)
+            if (row == 0 || row == h - 1 || col == 0 || col == w - 1) {
+                Offset(px, py)
+            } else {
+                val nx = SimplexNoise.noise(px * 1.5f + time, i.toFloat()) * 0.16f
+                val ny = SimplexNoise.noise(py * 1.5f + time, i + 50f) * 0.16f
+                Offset(px + nx, py + ny)
+            }
+        }
+    }
+
+    val gridColors = remember(c0, c1, c2, c3) {
+        Array(9) { i ->
+            val fx = (i % 3) / 2f; val fy = (i / 3) / 2f
+            lerp(lerp(c0, c1, fx), lerp(c2, c3, fx), fy)
+        }
+    }
+
+    val shape = RoundedCornerShape(20.dp)
+
+    Surface(
+        onClick = onToggleLoading,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .border(1.5.dp, if (isLoading) Color.Cyan.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.2f), shape),
+        shape = shape,
+        color = Color.Transparent
+    ) {
+        Box(
+            modifier = Modifier.padding(20.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            StardustMesh(
+                modifier = Modifier.matchParentSize(),
+                width = 3,
+                height = 3,
+                points = points,
+                colors = gridColors,
+                dustIntensity = if (isLoading) 0.15f else 0.04f
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Text(
+                        text = if (isLoading) "Loading Content..." else "Content Loaded",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = if (isLoading) "Rapid mesh flow active..." else "Slow motion & fixed theme palette",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.Black.copy(alpha = 0.4f)
+                ) {
+                    Text(
+                        text = if (isLoading) "Simulate Done" else "Simulate Load",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+```
+```

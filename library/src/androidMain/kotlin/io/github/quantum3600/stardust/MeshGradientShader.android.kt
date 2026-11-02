@@ -132,27 +132,40 @@ internal actual class MeshGradientShader actual constructor(
         }
     }
 
+    private var runtimeShaderInstance: Shader? = null
+    private val resolutionArray = FloatArray(2)
+
     actual fun brush(size: Size): Brush {
         if (Build.VERSION.SDK_INT >= 33 && RuntimeShaderReflection.isAvailable) {
             if (!dirty && currentBrush != null && currentSize == size) return currentBrush!!
             currentSize = size
-            val shader = RuntimeShaderReflection.create(
-                source = MeshGradientShaderSource,
-                width = width,
-                height = height,
-                resolution = floatArrayOf(size.width, size.height),
-                points = pointUniforms,
-                colors = colorUniforms,
-                uTangents = uTangentUniforms,
-                vTangents = vTangentUniforms,
-                grainIntensity = currentDustIntensity,
-                grainSeed = currentDustPhase,
-            )
-            currentBrush = object : ShaderBrush() {
-                override fun createShader(size: Size): androidx.compose.ui.graphics.Shader = shader
+            if (runtimeShaderInstance == null) {
+                runtimeShaderInstance = RuntimeShaderReflection.createShader(MeshGradientShaderSource)
             }
-            dirty = false
-            return currentBrush!!
+            val shader = runtimeShaderInstance
+            if (shader != null) {
+                resolutionArray[0] = size.width
+                resolutionArray[1] = size.height
+                RuntimeShaderReflection.updateUniforms(
+                    instance = shader,
+                    width = width,
+                    height = height,
+                    resolution = resolutionArray,
+                    points = pointUniforms,
+                    colors = colorUniforms,
+                    uTangents = uTangentUniforms,
+                    vTangents = vTangentUniforms,
+                    grainIntensity = currentDustIntensity,
+                    grainSeed = currentDustPhase,
+                )
+                if (currentBrush == null) {
+                    currentBrush = object : ShaderBrush() {
+                        override fun createShader(size: Size): androidx.compose.ui.graphics.Shader = shader
+                    }
+                }
+                dirty = false
+                return currentBrush!!
+            }
         }
         return Brush.linearGradient(listOf(fallbackStart, fallbackEnd))
     }
@@ -167,6 +180,7 @@ internal actual class MeshGradientShader actual constructor(
 
     actual fun close() {
         currentBrush = null
+        runtimeShaderInstance = null
     }
 
     private fun initFallbackBuffers() {
@@ -420,8 +434,16 @@ private object RuntimeShaderReflection {
         Float::class.javaPrimitiveType,
     )
 
-    fun create(
-        source: String,
+    fun createShader(source: String): Shader? {
+        return try {
+            requireNotNull(constructor).newInstance(source) as Shader
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    fun updateUniforms(
+        instance: Shader,
         width: Int,
         height: Int,
         resolution: FloatArray,
@@ -431,17 +453,15 @@ private object RuntimeShaderReflection {
         vTangents: FloatArray,
         grainIntensity: Float,
         grainSeed: Float,
-    ): Shader {
-        val instance = requireNotNull(constructor).newInstance(source)
-        requireNotNull(setFloatUniform).invoke(instance, "uResolution", resolution)
-        requireNotNull(setIntUniform).invoke(instance, "uWidth", width)
-        requireNotNull(setIntUniform).invoke(instance, "uHeight", height)
-        requireNotNull(setFloatUniform).invoke(instance, "uPackedPoints", points)
-        requireNotNull(setFloatUniform).invoke(instance, "uColors", colors)
-        requireNotNull(setFloatUniform).invoke(instance, "uUTangents", uTangents)
-        requireNotNull(setFloatUniform).invoke(instance, "uVTangents", vTangents)
-        requireNotNull(setFloatUniformScalar).invoke(instance, "uGrainIntensity", grainIntensity)
-        requireNotNull(setFloatUniformScalar).invoke(instance, "uGrainSeed", grainSeed)
-        return instance as Shader
+    ) {
+        setFloatUniform?.invoke(instance, "uResolution", resolution)
+        setIntUniform?.invoke(instance, "uWidth", width)
+        setIntUniform?.invoke(instance, "uHeight", height)
+        setFloatUniform?.invoke(instance, "uPackedPoints", points)
+        setFloatUniform?.invoke(instance, "uColors", colors)
+        setFloatUniform?.invoke(instance, "uUTangents", uTangents)
+        setFloatUniform?.invoke(instance, "uVTangents", vTangents)
+        setFloatUniformScalar?.invoke(instance, "uGrainIntensity", grainIntensity)
+        setFloatUniformScalar?.invoke(instance, "uGrainSeed", grainSeed)
     }
 }

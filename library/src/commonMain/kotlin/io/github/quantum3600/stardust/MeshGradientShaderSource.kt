@@ -38,41 +38,51 @@ int pointIndex(int x, int y) {
     return clampInt(y, 0, uHeight - 1) * uWidth + clampInt(x, 0, uWidth - 1);
 }
 
+float4 getPackedPoint(int index) {
+    for (int i = 0; i < 13; i++) {
+        if (i == index) return uPackedPoints[i];
+    }
+    return float4(0.0);
+}
+
+float4 getColor(int index) {
+    for (int i = 0; i < 25; i++) {
+        if (i == index) return uColors[i];
+    }
+    return float4(0.0);
+}
+
+float4 getUTangent(int index) {
+    for (int i = 0; i < 25; i++) {
+        if (i == index) return uUTangents[i];
+    }
+    return float4(0.0);
+}
+
+float4 getVTangent(int index) {
+    for (int i = 0; i < 25; i++) {
+        if (i == index) return uVTangents[i];
+    }
+    return float4(0.0);
+}
+
 float2 pointAt(int x, int y) {
     int idx = pointIndex(x, y);
     int pairIndex = idx / 2;
-    float4 packedPair = uPackedPoints[0];
-    for (int i = 0; i < 13; i++) {
-        if (i == pairIndex) {
-            packedPair = uPackedPoints[i];
-            break;
-        }
-    }
+    float4 packedPair = getPackedPoint(pairIndex);
     return ((pairIndex * 2) == idx) ? packedPair.xy : packedPair.zw;
 }
 
 float4 colorAt(int x, int y) {
-    int idx = pointIndex(x, y);
-    for (int i = 0; i < 25; i++) {
-        if (i == idx) return uColors[i];
-    }
-    return uColors[0];
+    return getColor(pointIndex(x, y));
 }
 
 float4 uTangentAt(int x, int y) {
-    int idx = pointIndex(x, y);
-    for (int i = 0; i < 25; i++) {
-        if (i == idx) return uUTangents[i];
-    }
-    return uUTangents[0];
+    return getUTangent(pointIndex(x, y));
 }
 
 float4 vTangentAt(int x, int y) {
-    int idx = pointIndex(x, y);
-    for (int i = 0; i < 25; i++) {
-        if (i == idx) return uVTangents[i];
-    }
-    return uVTangents[0];
+    return getVTangent(pointIndex(x, y));
 }
 
 float4 interpolateColorRow(int x, int y, float t) {

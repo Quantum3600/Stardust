@@ -40,7 +40,7 @@ fun StardustMesh(
     }
     require(dustIntensity in 0f..1f) { "dustIntensity must be between 0.0 and 1.0" }
 
-    val dustPhase = remember { androidx.compose.runtime.mutableStateOf(0f) }
+    val dustPhase = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     androidx.compose.runtime.LaunchedEffect(dustAnimationSpeed) {
         if (dustAnimationSpeed > 0f) {
             var lastTime = androidx.compose.runtime.withFrameNanos { it }
@@ -48,12 +48,10 @@ fun StardustMesh(
                 val frameTime = androidx.compose.runtime.withFrameNanos { it }
                 val dt = (frameTime - lastTime) / 1_000_000_000f
                 lastTime = frameTime
-                dustPhase.value += dt * dustAnimationSpeed
+                dustPhase.floatValue += dt * dustAnimationSpeed
             }
         }
     }
-
-    val effectivePhase = if (dustAnimationSpeed > 0f) dustPhase.value else dustAnimationSpeed
 
     val shader = remember(width, height) {
         MeshGradientShader(width, height)
@@ -66,6 +64,7 @@ fun StardustMesh(
     }
 
     Canvas(modifier) {
+        val effectivePhase = if (dustAnimationSpeed > 0f) dustPhase.floatValue else dustAnimationSpeed
         shader.update(points, colors, uTangents, vTangents, dustIntensity, effectivePhase)
         drawMeshGradient(shader)
     }

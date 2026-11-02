@@ -56,7 +56,7 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
 
         // This loop runs for every frame, creating a smooth animation
         while (true) {
-            withFrameNanos { frameTime ->
+            val nextFramePoints = withFrameNanos { frameTime ->
                 if (lastFrameTime == 0L) {
                     lastFrameTime = frameTime
                 }
@@ -65,20 +65,16 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
                 time += deltaTime
 
                 // a. Calculate new target positions with Simplex Noise
-                // Reduced animation speed from 0.3f to 0.15f for a calmer flow
                 val animationSpeed = 0.15f
                 for (i in targetPoints.indices) {
                     val col = i % width
                     val row = i / width
-                    // Keep the border points fixed for a cleaner look
                     val isBorder = row == 0 || row == height - 1 || col == 0 || col == width - 1
 
                     if (isBorder) {
                         targetPoints[i] = basePoints[i]
                     } else {
                         val bp = basePoints[i]
-                        // Reduced amplitude from 0.2f to 0.12f to prevent points from crossing each other 
-                        // (which causes the mesh to physically fold over itself)
                         val noiseX =
                             SimplexNoise.noise(bp.x * 1.5f, time * animationSpeed + i) * 0.12f
                         val noiseY =
@@ -88,7 +84,7 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
                 }
 
                 // b. Smoothly interpolate the current points towards the moving target
-                val smoothingFactor = 4f // Lower value means smoother/softer following (was 8f)
+                val smoothingFactor = 4f
                 for (i in currentPoints.indices) {
                     currentPoints[i] = lerp(
                         currentPoints[i],
@@ -97,13 +93,9 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
                     )
                 }
 
-                // c. Snap the mesh state to the newly calculated points.
-                // This is a suspend function, so it's called within the coroutine scope.
-                // It efficiently updates the state, triggering a redraw.
-                launch {
-                    meshState.snapAllPoints(currentPoints.toList())
-                }
+                currentPoints.toList()
             }
+            meshState.snapAllPoints(nextFramePoints)
         }
     }
 
