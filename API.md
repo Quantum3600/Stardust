@@ -35,7 +35,7 @@ A comprehensive API documentation for **Stardust**, a Compose Multiplatform libr
 
 ## Overview & Architecture
 
-Stardust renders fluid, multi-point color gradients by evaluating a bicubic surface per pixel using custom platform shaders (Android AGSL `RuntimeShader` on API 33+ or Skia `RuntimeEffect` on Desktop, iOS, JS, and Wasm).
+Stardust renders fluid, multi-point color gradients by evaluating a bicubic surface per pixel using custom platform shaders (Android AGSL `RuntimeShader` on API 33+, offscreen OpenGL ES `HardwareBuffer` pipeline on Android API 26–32, or Skia `RuntimeEffect` on Desktop, iOS, JS, and Wasm).
 
 ### Key Features
 - **GPU-Accelerated**: Per-pixel evaluation with zero CPU tessellation or mesh triangle overhead.

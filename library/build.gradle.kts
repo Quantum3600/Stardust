@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "io.github.quantum3600"
-version = "1.0.4"
+version = "1.0.5-alpha01"
 
 android {
     namespace = "io.github.quantum3600.stardust"

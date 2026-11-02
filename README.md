@@ -10,14 +10,14 @@
 
 **Stardust** is a lightweight, powerful Compose Multiplatform library that brings beautiful, animated, and static mesh gradients and procedural film grain to Android, iOS, Desktop/JVM, and Web, inspired by the stunning visuals of SwiftUI. Create fluid, vibrant, and interactive backgrounds with a simple and intuitive API.
 
-The library uses a cached SkSL runtime shader through Compose's native Skia-backed `ShaderBrush` pipeline, so bicubic surface evaluation and dithering run per pixel without CPU tessellation seams. Android API 33+ uses `RuntimeShader`; Desktop, iOS, and Web use Skia's `RuntimeEffect`.
+The library uses a cached SkSL runtime shader through Compose's native Skia-backed `ShaderBrush` pipeline on Desktop, iOS, and Web (`RuntimeEffect`). On Android API 33+, it uses native `RuntimeShader` (AGSL); on Android API 26–32, it automatically routes to an offscreen OpenGL ES hardware buffer pipeline (`HardwareBuffer` + `ImageReader`) with zero-copy Canvas integration (and high-resolution CPU bicubic patch tessellation as a safety fallback).
 
 ### Key Features
 - **Explicit Bézier Tangent Controls**: Use `BezierPoint` with custom leading/trailing horizontal and top/bottom vertical tangent handles for asymmetric color warping.
 - **Procedural Stardust & Film Grain**: Non-repetitive GPU hash/dithering stage (`grainIntensity`, `grainSeed`).
 - **2D Spatial Grid Colors**: Generate multi-directional (diagonal, radial, and 4-corner) color blends using `generateSpatialGridColors`.
 - **Standalone Stardust Modifier**: Apply customizable film grain noise overlays directly to any Compose component via `Modifier.stardust`.
-- **GPU-Accelerated & Cross-Platform**: Android, iOS, Desktop (JVM), JS, and Wasm support.
+- **GPU-Accelerated & Cross-Platform**: Android (API 26+), iOS, Desktop (JVM), JS, and Wasm support.
 
 ---
 
@@ -38,7 +38,7 @@ Add the dependency to your module's `build.gradle.kts` file from **Maven Central
 
 ```kotlin
 dependencies {
-    implementation("io.github.quantum3600:composemeshgradient:1.0.3")
+    implementation("io.github.quantum3600:stardust:1.0.5-alpha01")
 }
 ```
 
