@@ -15,7 +15,7 @@ android {
     namespace = "io.github.quantum3600.stardust"
     compileSdk = 35
     defaultConfig {
-        minSdk = 21
+        minSdk = 26
     }
 }
 

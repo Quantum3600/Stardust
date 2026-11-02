@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.IntSize
+import io.github.quantum3600.stardust.gles.HardwareBufferOffscreenPipeline
 import io.github.quantum3600.stardust.utils.MeshInterpolation
 import io.github.quantum3600.stardust.utils.computeDefaultTangents
 import io.github.quantum3600.stardust.utils.lerp
@@ -39,7 +40,23 @@ internal actual class MeshGradientShader actual constructor(
     private var fallbackStart = Color.Transparent
     private var fallbackEnd = Color.Transparent
 
-    // Fallback tessellation buffers (Pre-API 33)
+    // Pre-API 33 OpenGL ES HardwareBuffer offscreen pipeline
+    private var latestGLESFrame: ImageBitmap? = null
+    private var offscreenPipeline: Any? = null
+
+    init {
+        if (Build.VERSION.SDK_INT in 29..32) {
+            try {
+                offscreenPipeline = HardwareBufferOffscreenPipeline { frame ->
+                    latestGLESFrame = frame
+                }
+            } catch (_: Throwable) {
+                offscreenPipeline = null
+            }
+        }
+    }
+
+    // Fallback tessellation buffers (Pre-API 33 fallback)
     private val subdivPerPatch = 16
     private val totalX = (width - 1) * subdivPerPatch + 1
     private val totalY = (height - 1) * subdivPerPatch + 1
@@ -286,6 +303,34 @@ internal actual class MeshGradientShader actual constructor(
         } else {
             if (Build.VERSION.SDK_INT >= 33 && RuntimeShaderReflection.isAvailable) {
                 drawScope.drawRect(brush = brush(drawScope.size))
+            } else if (Build.VERSION.SDK_INT >= 29 && offscreenPipeline is HardwareBufferOffscreenPipeline) {
+                val pipeline = offscreenPipeline as HardwareBufferOffscreenPipeline
+                val w = drawScope.size.width.toInt().coerceAtLeast(1)
+                val h = drawScope.size.height.toInt().coerceAtLeast(1)
+
+                pipeline.render(
+                    width = w,
+                    height = h,
+                    meshWidth = width,
+                    meshHeight = height,
+                    packedPoints = pointUniforms,
+                    colors = colorUniforms,
+                    uTangents = uTangentUniforms,
+                    vTangents = vTangentUniforms,
+                    grainIntensity = currentDustIntensity,
+                    grainSeed = currentDustPhase
+                )
+
+                val frame = latestGLESFrame
+                if (frame != null) {
+                    drawScope.drawImage(
+                        image = frame,
+                        dstSize = IntSize(w, h),
+                        filterQuality = FilterQuality.Low
+                    )
+                } else {
+                    drawFallback(drawScope)
+                }
             } else {
                 drawFallback(drawScope)
             }
@@ -297,6 +342,11 @@ internal actual class MeshGradientShader actual constructor(
         runtimeShaderInstance = null
         offscreenBitmap = null
         offscreenCanvas = null
+        if (Build.VERSION.SDK_INT >= 29 && offscreenPipeline is HardwareBufferOffscreenPipeline) {
+            (offscreenPipeline as HardwareBufferOffscreenPipeline).release()
+            offscreenPipeline = null
+        }
+        latestGLESFrame = null
     }
 
     private fun initFallbackBuffers() {
@@ -434,7 +484,6 @@ internal actual class MeshGradientShader actual constructor(
         val colA = rowColorsA ?: return
 
         val subdivX = subdivPerPatch
-        val subdivY = subdivPerPatch
 
         // Pass 1: Interpolate along X for each control row
         for (gy in 0 until height) {
