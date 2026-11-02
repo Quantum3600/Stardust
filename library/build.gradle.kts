@@ -10,6 +10,7 @@ plugins {
 
 group = "io.github.quantum3600"
 version = "1.0.4"
+
 android {
     namespace = "io.github.quantum3600.stardust"
     compileSdk = 35
@@ -54,14 +55,15 @@ kotlin {
     }
 }
 
-
-// If you are using the vanniktech mavenPublishing plugin:
 mavenPublishing {
-    // Only require signing if keys are present (or disable signing for JitPack builds)
+    publishToMavenCentral()
+
+    // Sign all publications if keys are present
     if (project.hasProperty("signingInMemoryKey") || project.hasProperty("signing.keyId")) {
         signAllPublications()
     }
-    coordinates("com.github.quantum3600", "stardust", version.toString())
+    
+    coordinates("io.github.quantum3600", "stardust", version.toString())
 
     pom {
         name.set("Stardust - Mesh Gradient for Multiplatform")
@@ -71,7 +73,20 @@ mavenPublishing {
             license {
                 name.set("The Apache License, Version 2.0")
                 url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                distribution.set("repo")
             }
+        }
+        developers {
+            developer {
+                id.set("quantum3600")
+                name.set("Trishit Majumdar")
+                email.set("trishitquantum360@gmail.com")
+            }
+        }
+        scm {
+            connection.set("scm:git:github.com/quantum3600/stardust.git")
+            developerConnection.set("scm:git:ssh://github.com/quantum3600/stardust.git")
+            url.set("https://github.com/quantum3600/stardust")
         }
     }
 }

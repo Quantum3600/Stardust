@@ -2,7 +2,7 @@
   <artifact type="jar" name="sample-js">
     <output-path>$PROJECT_DIR$/sample/build/libs</output-path>
     <root id="archive" name="sample-js.jar">
-      <element id="module-output" name="compose-mesh-gradient.sample.jsMain" />
+      <element id="module-output" name="stardust.sample.jsMain" />
     </root>
   </artifact>
 </component>
