@@ -1,7 +1,7 @@
 # Stardust: SwiftUI-like Mesh Gradients & Film Grain for Compose Multiplatform
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.quantum3600/composemeshgradient.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.quantum3600%22%20AND%20a:%22composemeshgradient%22)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.quantum3600/stardust.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.quantum3600%22%20AND%20a:%22stardust%22)
 
 **Stardust** is a lightweight, powerful Compose Multiplatform library that brings beautiful, animated, and static mesh gradients and procedural film grain to Android, iOS, Desktop/JVM, and Web, inspired by the stunning visuals of SwiftUI. Create fluid, vibrant, and interactive backgrounds with a simple and intuitive API.
 
