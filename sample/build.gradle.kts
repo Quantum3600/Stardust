@@ -43,6 +43,9 @@ kotlin {
             implementation(compose.ui)
             implementation(project(":library"))
         }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
         androidMain.dependencies {
             implementation(libs.androidx.core.ktx)
             implementation(libs.androidx.appcompat)
@@ -61,7 +64,7 @@ android {
     namespace = "io.github.quantum3600.stardust"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.trishit.composemeshgradient"
+        applicationId = "com.trishit.stardust"
         minSdk = 28
         targetSdk = 35
         versionCode = 1

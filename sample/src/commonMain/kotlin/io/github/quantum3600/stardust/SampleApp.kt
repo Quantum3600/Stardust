@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 fun SampleApp() {
     MaterialTheme {
         Box(Modifier.fillMaxSize()) {
-            SimplexNoiseMeshExample(Modifier.fillMaxSize())
+            BezierAndGrainDemo(Modifier.fillMaxSize())
         }
     }
 }

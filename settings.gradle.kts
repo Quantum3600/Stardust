@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "compose-mesh-gradient"
+rootProject.name = "stardust"
 include(":sample")
 include(":library")

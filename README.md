@@ -1,70 +1,47 @@
-# ComposeMeshGradient: SwiftUI-like Mesh Gradients for Compose Multiplatform
+# Stardust: SwiftUI-like Mesh Gradients & Film Grain for Compose Multiplatform
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.quantum3600/composemeshgradient.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.quantum3600%22%20AND%20a:%22composemeshgradient%22)
 
-ComposeMeshGradient is a lightweight, powerful Compose Multiplatform library that brings beautiful, animated, and static mesh gradients to Android, iOS, Desktop/JVM, and Web, inspired by the stunning visuals of SwiftUI. Create fluid, vibrant, and interactive backgrounds with a simple and intuitive API.
+**Stardust** is a lightweight, powerful Compose Multiplatform library that brings beautiful, animated, and static mesh gradients and procedural film grain to Android, iOS, Desktop/JVM, and Web, inspired by the stunning visuals of SwiftUI. Create fluid, vibrant, and interactive backgrounds with a simple and intuitive API.
 
-The library uses a cached SkSL runtime shader through Compose's native Skia-backed `ShaderBrush`
-pipeline, so bicubic interpolation runs per pixel without CPU tessellation seams. Android API 33+
-uses `RuntimeShader`; Desktop, iOS, and Web use Skia's `RuntimeEffect`.
+The library uses a cached SkSL runtime shader through Compose's native Skia-backed `ShaderBrush` pipeline, so bicubic surface evaluation and dithering run per pixel without CPU tessellation seams. Android API 33+ uses `RuntimeShader`; Desktop, iOS, and Web use Skia's `RuntimeEffect`.
+
+### Key Features
+- **Explicit Bézier Tangent Controls**: Use `BezierPoint` with custom leading/trailing horizontal and top/bottom vertical tangent handles for asymmetric color warping.
+- **Procedural Stardust & Film Grain**: Non-repetitive GPU hash/dithering stage (`grainIntensity`, `grainSeed`).
+- **2D Spatial Grid Colors**: Generate multi-directional (diagonal, radial, and 4-corner) color blends using `generateSpatialGridColors`.
+- **Standalone Stardust Modifier**: Apply customizable film grain noise overlays directly to any Compose component via `Modifier.stardust`.
+- **GPU-Accelerated & Cross-Platform**: Android, iOS, Desktop (JVM), JS, and Wasm support.
 
 ---
 
 ## ✨ Demos
 
-Here are some examples of what you can create with ComposeMeshGradient:
+Here are some examples of what you can create with Stardust:
 
 ![github-1](https://github.com/user-attachments/assets/c0c78e75-77cb-49ba-ad34-b89712bd1b03)  ![Screen_Recording_20250811_110334_Compose Mesh Gradient](https://github.com/user-attachments/assets/f77f80af-1bdb-444d-817a-6bfa79ac2334)  ![Screen_Recording_20250811_223615_MeshGraadTest (1)](https://github.com/user-attachments/assets/f24e2a0d-a4a6-44c7-8038-04cdbf1f72cd)
-
-
 
 ---
 
 ## 💡 Showcase & Inspiration
 
-ComposeMeshGradient provides the core tools to build a wide variety of dynamic and interactive effects. The `MeshGradientState` allows you to update colors and points on every frame, making it possible to connect the gradient to any external state or user input. Here are some ideas to inspire you:
+Stardust provides the core tools to build a wide variety of dynamic and interactive effects. `StardustMeshState` / `MeshGradientState` allows you to update colors and control points on every frame, making it possible to connect gradients to external state or user input:
 
-* **Interactive Backgrounds:** Create gradients that respond to user input by capturing events and updating the `MeshGradientState`.
-  * **Touch Interaction:** Make the mesh points ripple away from a user's touch.
-  * **Sensor-driven:** Use the device's gyroscope or accelerometer to shift the gradient as the user moves their phone, creating a parallax effect.
-* **Data Visualization:** Represent data dynamically by updating the `colors` array based on a data source.
-  * **Heatmaps:** Use a mesh to visualize data points, where colors change based on intensity.
-  * **Live Weather:** Create a background that reflects the current weather—sunny yellows, cloudy grays, or stormy blues that animate gently.
-* **Themed Animations:** Design beautiful, ambient animations that match your app's aesthetic, similar to the `SimplexNoise` example.
-  * **"Lava Lamp" Effect:** Slow, blob-like animations that morph between colors.
-  * **"Aurora Borealis" Effect:** Shimmering, curtain-like waves of color for a calming background.
-* **Dynamic UI Elements:** Integrate mesh gradients directly into your UI components.
-  * **Reactive Sliders:** Change the gradient's colors or intensity as a slider's value changes.
-  * **Animated Progress Bars:** Fill a progress bar with a flowing gradient animation as it completes.
-
----
-
-## 🗺️ Roadmap
-
-Here are some potential features and helpers we're considering for future releases to make implementing advanced use cases even easier:
-
-* **Built-in Touch Modifiers:** Helpers to automatically translate touch input into mesh point movements.
-* **Additional Interpolation Shaders:** Support for different smoothing algorithms beyond the default Catmull-Rom.
-* **Performance Optimizations:** Further investigation into reducing GPU load and improving frame rates for extremely complex animations.
+* **Interactive Backgrounds:** Create gradients that respond to touch input or gyroscope motion by updating `StardustMeshState`.
+* **Data Visualization & Heatmaps:** Represent data dynamically by blending colors across 2D spatial grid coordinates (`generateSpatialGridColors`).
+* **Themed Animations:** Design ambient, "lava lamp" or "aurora borealis" animations with organic motion and procedural film grain.
+* **Component Noise Overlays:** Dust buttons, cards, or images with `Modifier.stardust` for a textured tactile aesthetic.
 
 ---
 
 ## 🚀 Installation
 
-Add the dependency to your module's `build.gradle.kts` or `build.gradle` file. The library is hosted on **Maven Central**.
+Add the dependency to your module's `build.gradle.kts` file from **Maven Central**:
 
-**build.gradle.kts (Kotlin DSL)**
 ```kotlin
 dependencies {
-    implementation("io.github.quantum3600:composemeshgradient:0.3.0") // Replace with the latest version
-}
-```
-
-**build.gradle (Groovy DSL)**
-```groovy
-dependencies {
-    implementation 'io.github.quantum3600:composemeshgradient:0.3.0' // Replace with the latest version
+    implementation("io.github.quantum3600:composemeshgradient:1.0.3")
 }
 ```
 
@@ -72,29 +49,26 @@ dependencies {
 
 ## 🎨 Usage
 
-The core of the library is the `MeshGradient` composable. You define a grid size (`width` and `height`), provide the control `points` for the mesh, and assign `colors` to each point.
+The core composable functions are `StardustMesh` and `MeshGradient`. You define a grid size (`width` and `height`), provide control `points` (or `bezierPoints`), and assign `colors` to each point.
 
 ### Basic Concepts
 
-* **Grid (`width`, `height`):** Defines the number of control points. A 3x3 grid has 9 points.
-* **Points (`Array<Offset>`):** An array of `Offset` values that determine the position of each control point on the canvas. The coordinates are normalized, ranging from `0f` (left/top) to `1f` (right/bottom). The array is laid out in row-major order.
-* **Colors (`Array<Color>`):** An array of `Color` values, one for each control point. The colors will be smoothly interpolated across the mesh.
+* **Grid (`width`, `height`):** Defines the number of control points (e.g. 3x3 grid = 9 points).
+* **Points (`Array<Offset>` or `List<List<BezierPoint>>`):** Positions or explicit Bézier points determining control point locations and tangent handles. Coordinates are normalized (`0f` to `1f`).
+* **Colors (`Array<Color>` or `List<List<Color>>`):** Colors associated with each control point, smoothly interpolated across the mesh.
 
 ### Static Gradients
 
 #### 2x2 Mesh Gradient (Static)
 
-A simple 2x2 grid is the most basic mesh, creating a beautiful blend between four colors.
-
-```
-kotlin
+```kotlin
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.quantum3600.stardust.MeshGradient
+import io.github.quantum3600.stardust.StardustMesh
 
 @Composable
 fun Static2x2Mesh() {
-    MeshGradient(
+    StardustMesh(
         width = 2,
         height = 2,
         points = arrayOf(
@@ -110,64 +84,70 @@ fun Static2x2Mesh() {
 }
 ```
 
-#### 3x3 Mesh Gradient (Static)
+#### Asymmetric Bézier Handles & Film Grain
 
-By increasing the grid size, you can create more complex and nuanced color interactions.
+Use `BezierPoint` to specify custom directional tangent handles for asymmetric color pulling, alongside procedural film grain:
 
-```
-kotlin
+```kotlin
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.quantum3600.stardust.MeshGradient
+import io.github.quantum3600.stardust.StardustMesh
+import io.github.quantum3600.stardust.data.BezierPoint
 
 @Composable
-fun Static3x3Mesh() {
-    MeshGradient(
-        width = 3,
-        height = 3,
-        points = arrayOf(
-            Offset(0f, 0f), Offset(0.5f, 0f), Offset(1f, 0f),
-            Offset(0f, 0.5f), Offset(0.5f, 0.5f), Offset(1f, 0.5f),
-            Offset(0f, 1f), Offset(0.5f, 1f), Offset(1f, 1f)
+fun BezierAndGrainMesh() {
+    val bezierPoints = listOf(
+        listOf(
+            BezierPoint.withTangents(Offset(0f, 0f)),
+            BezierPoint.withTangents(Offset(0.5f, 0f), uTangentTrailing = Offset(0.1f, 0.05f)),
+            BezierPoint.withTangents(Offset(1f, 0f))
         ),
-        colors = arrayOf(
-            Color.Red, Color.Yellow, Color.Green,
-            Color.Cyan, Color.Blue, Color.Magenta,
-            Color.Black, Color.Gray, Color.White
+        listOf(
+            BezierPoint.withTangents(Offset(0f, 0.5f)),
+            BezierPoint.withTangents(
+                position = Offset(0.5f, 0.5f),
+                uTangentLeading = Offset(-0.2f, 0.1f),
+                uTangentTrailing = Offset(0.2f, -0.1f),
+                vTangentTop = Offset(0.05f, -0.2f),
+                vTangentBottom = Offset(-0.05f, 0.2f)
+            ),
+            BezierPoint.withTangents(Offset(1f, 0.5f))
         ),
-        modifier = Modifier.fillMaxSize()
+        listOf(
+            BezierPoint.withTangents(Offset(0f, 1f)),
+            BezierPoint.withTangents(Offset(0.5f, 1f)),
+            BezierPoint.withTangents(Offset(1f, 1f))
+        )
+    )
+
+    StardustMesh(
+        bezierPoints = bezierPoints,
+        colors = colors,
+        grainIntensity = 0.12f,
+        grainSeed = frameTime
     )
 }
 ```
 
-#### 4x4 Mesh Gradient (Static)
+#### Standalone Stardust Modifier
 
-A 4x4 grid offers even more control for intricate designs.
+Apply procedural film grain overlay to any Compose layout element (such as Cards, Buttons, Images, or Text) using `Modifier.stardust`:
 
-```
-kotlin
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import io.github.quantum3600.stardust.MeshGradient
+```kotlin
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.BlendMode
+import io.github.quantum3600.stardust.stardust
 
-@Composable
-fun Static4x4Mesh() {
-    MeshGradient(
-        width = 4,
-        height = 4,
-        points = Array(16) { i ->
-            val col = i % 4
-            val row = i / 4
-            Offset(x = col / 3f, y = row / 3f)
-        },
-        colors = arrayOf(
-            Color(0xffF36E21), Color(0xffF0A92A), Color(0xffE7D043), Color(0xffE7E95D),
-            Color(0xffDFF168), Color(0xffB1E192), Color(0xff7FD3A9), Color(0xff5EC6B8),
-            Color(0xff4AB8C2), Color(0xff4099B9), Color(0xff3B79A8), Color(0xff395B93),
-            Color(0xff36447C), Color(0xff332E66), Color(0xff301E4E), Color(0xff2D1137)
-        ),
-        modifier = Modifier.fillMaxSize()
-    )
+Card(
+    modifier = Modifier
+        .fillMaxWidth()
+        .stardust(
+            intensity = 0.08f,
+            seed = animTime,
+            blendMode = BlendMode.Overlay
+        )
+) {
+    Text("Stardust Texture Overlay", modifier = Modifier.padding(16.dp))
 }
 ```
 
@@ -175,118 +155,17 @@ fun Static4x4Mesh() {
 
 ## 🎬 Animated Gradients
 
-MeshGrad truly shines with animations. You can animate both the colors and the positions of the control points.
+### Simplex Noise Animation (Fluid Gradient)
 
-### 1. Animating Colors
+For a truly dynamic and organic feel, use `SimplexNoise` to continuously animate inner control points with `rememberStardustMeshState` / `rememberMeshGradientState`:
 
-Animate the colors of the mesh points to create shifting, breathing backgrounds. This is great for button backgrounds or subtle UI elements.
-
-```
-kotlin
-import androidx.compose.animation.animateColor
-import androidx.compose.animation.core.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import io.github.quantum3600.stardust.MeshGradient
-
-@Composable
-fun AnimatedColorMesh() {
-    val infiniteTransition = rememberInfiniteTransition(label = "color-transition")
-    
-    val animatedColor1 = infiniteTransition.animateColor(
-        initialValue = Color(0xFF8A2387),
-        targetValue = Color(0xFFF09819),
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "color1"
-    )
-    
-    val animatedColor2 = infiniteTransition.animateColor(
-        initialValue = Color(0xFFEDDE5D),
-        targetValue = Color(0xFFE94057),
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ), label = "color2"
-    )
-
-    MeshGradient(
-        width = 2,
-        height = 2,
-        points = arrayOf(
-            Offset(0f, 0f), Offset(1f, 0f),
-            Offset(0f, 1f), Offset(1f, 1f)
-        ),
-        colors = arrayOf(
-            animatedColor1.value, animatedColor2.value,
-            animatedColor2.value, animatedColor1.value
-        ),
-        modifier = Modifier.fillMaxSize()
-    )
-}
-```
-
-### 2. Animating a Control Point
-
-Animate the `points` array to make the gradient warp and distort dynamically.
-
-```
-kotlin
-import androidx.compose.animation.core.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import io.github.quantum3600.stardust.MeshGradient
-import io.github.quantum3600.stardust.utils.animateOffset
-
-@Composable
-fun AnimatedPointMesh() {
-    val infiniteTransition = rememberInfiniteTransition(label = "point-transition")
-    
-    // Animate the middle point of a 3x3 grid
-    val animatedMiddlePoint = infiniteTransition.animateOffset(
-        initialValue = Offset(0.2f, 0.2f),
-        targetValue = Offset(0.8f, 0.8f),
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    MeshGradient(
-        width = 3,
-        height = 3,
-        points = arrayOf(
-            Offset(0f, 0f),    Offset(0.5f, 0f),    Offset(1f, 0f),
-            Offset(0f, 0.5f),   animatedMiddlePoint.value, Offset(1f, 0.5f), // Animated point
-            Offset(0f, 1f),    Offset(0.5f, 1f),    Offset(1f, 1f)
-        ),
-        colors = arrayOf(
-            Color.Red, Color.Magenta, Color.Blue,
-            Color.Yellow, Color.White, Color.Green,
-            Color.Cyan, Color.DarkGray, Color.Black
-        ),
-        modifier = Modifier.fillMaxSize()
-    )
-}
-```
-
-### 3. Advanced: Simplex Noise Animation (Fluid Gradient)
-
-For a truly dynamic and organic feel, you can use `SimplexNoise` to continuously animate all inner control points. This creates a mesmerizing, fluid effect. The library provides `rememberMeshGradientState` and `snapAllPoints` for high-performance, per-frame updates.
-
-```
-kotlin
+```kotlin
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.quantum3600.stardust.MeshGradient
-import io.github.quantum3600.stardust.rememberMeshGradientState
+import io.github.quantum3600.stardust.StardustMesh
+import io.github.quantum3600.stardust.rememberStardustMeshState
 import io.github.quantum3600.stardust.utils.SimplexNoise
 import kotlinx.coroutines.launch
 
@@ -312,7 +191,7 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
         }
     }
     
-    val meshState = rememberMeshGradientState(points = initialPoints)
+    val meshState = rememberStardustMeshState(points = initialPoints, colors = colors.toTypedArray())
 
     LaunchedEffect(Unit) {
         var time = 0f
@@ -326,7 +205,7 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
                 if (lastFrameTime == 0L) lastFrameTime = frameTime
                 val deltaTime = (frameTime - lastFrameTime) / 1_000_000_000.0f
                 lastFrameTime = frameTime
-                time += deltaTime * 0.3f // Animation speed
+                time += deltaTime * 0.3f
 
                 for (i in targetPoints.indices) {
                     val col = i % width
@@ -353,20 +232,25 @@ fun SimplexNoiseMeshExample(modifier: Modifier) {
         }
     }
 
-    MeshGradient(
+    StardustMesh(
         modifier = modifier,
         width = width,
         height = height,
-        points = meshState.points.toTypedArray(),
-        colors = colors.toTypedArray()
+        state = meshState,
+        dustIntensity = 0.05f
     )
 }
 
-// Linear interpolation helper
 private fun lerp(start: Offset, stop: Offset, fraction: Float): Offset {
     return start + (stop - start) * fraction.coerceIn(0f, 1f)
 }
 ```
+
+---
+
+## 🙏 Credits & Acknowledgments
+
+This project is built upon and inspired by [ComposeMeshGradient](https://github.com/om252345/composemeshgradient) created by [Omkar Deshmukh](https://github.com/om252345). We extend our sincere gratitude to Omkar Deshmukh for the original foundation.
 
 ---
 
@@ -379,10 +263,11 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+```

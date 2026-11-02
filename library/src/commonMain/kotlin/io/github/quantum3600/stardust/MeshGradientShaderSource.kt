@@ -7,16 +7,20 @@ uniform int uWidth;
 uniform int uHeight;
 uniform float4 uPackedPoints[13];
 uniform float4 uColors[25];
-uniform float uDustIntensity;
-uniform float uDustPhase;
+uniform float4 uUTangents[25];
+uniform float4 uVTangents[25];
+uniform float uGrainIntensity;
+uniform float uGrainSeed;
 
 int clampInt(int val, int minVal, int maxVal) {
     return val < minVal ? minVal : (val > maxVal ? maxVal : val);
 }
 
-// Pseudo-random noise function
-float random(float2 st) {
-    return fract(sin(dot(st.xy, float2(12.9898, 78.233))) * 43758.5453123);
+// Procedural Stardust / Film Grain Hash
+float hash(float2 p, float seed) {
+    float3 p3 = fract(p.xyx * 0.1031 + seed);
+    p3 += float3(dot(p3, p3.yzx + 33.33));
+    return fract((p3.x + p3.y) * p3.z);
 }
 
 float catmullRom(float p0, float p1, float p2, float p3, float t) {
@@ -55,22 +59,20 @@ float4 colorAt(int x, int y) {
     return uColors[0];
 }
 
-// Perform color mixing in perceptual gamma space to match raw GLES20 vertex blending
-half4 blendMeshColors(half4 c1, half4 c2, half4 c3, half4 c4, float u, float v) {
-    half4 top = mix(c1, c2, half(u));
-    half4 bottom = mix(c3, c4, half(u));
-    return mix(top, bottom, half(v));
+float4 uTangentAt(int x, int y) {
+    int idx = pointIndex(x, y);
+    for (int i = 0; i < 25; i++) {
+        if (i == idx) return uUTangents[i];
+    }
+    return uUTangents[0];
 }
 
-float2 interpolatePointRow(int x, int y, float t) {
-    float2 p0 = pointAt(x - 1, y);
-    float2 p1 = pointAt(x, y);
-    float2 p2 = pointAt(x + 1, y);
-    float2 p3 = pointAt(x + 2, y);
-    return float2(
-        catmullRom(p0.x, p1.x, p2.x, p3.x, t),
-        catmullRom(p0.y, p1.y, p2.y, p3.y, t)
-    );
+float4 vTangentAt(int x, int y) {
+    int idx = pointIndex(x, y);
+    for (int i = 0; i < 25; i++) {
+        if (i == idx) return uVTangents[i];
+    }
+    return uVTangents[0];
 }
 
 float4 interpolateColorRow(int x, int y, float t) {
@@ -91,16 +93,46 @@ float2 evaluatePosition(float2 uv) {
     float gridY = uv.y * float(uHeight - 1);
     int cellX = clampInt(int(floor(gridX)), 0, uWidth - 2);
     int cellY = clampInt(int(floor(gridY)), 0, uHeight - 2);
-    float localU = clamp(gridX - float(cellX), 0.0, 1.0);
-    float localV = clamp(gridY - float(cellY), 0.0, 1.0);
-    float2 row0 = interpolatePointRow(cellX, cellY - 1, localU);
-    float2 row1 = interpolatePointRow(cellX, cellY, localU);
-    float2 row2 = interpolatePointRow(cellX, cellY + 1, localU);
-    float2 row3 = interpolatePointRow(cellX, cellY + 2, localU);
-    return float2(
-        catmullRom(row0.x, row1.x, row2.x, row3.x, localV),
-        catmullRom(row0.y, row1.y, row2.y, row3.y, localV)
-    );
+    float u = clamp(gridX - float(cellX), 0.0, 1.0);
+    float v = clamp(gridY - float(cellY), 0.0, 1.0);
+
+    float2 tl = pointAt(cellX, cellY);
+    float2 tr = pointAt(cellX + 1, cellY);
+    float2 bl = pointAt(cellX, cellY + 1);
+    float2 br = pointAt(cellX + 1, cellY + 1);
+
+    float4 tanU_tl = uTangentAt(cellX, cellY);
+    float4 tanU_tr = uTangentAt(cellX + 1, cellY);
+    float4 tanU_bl = uTangentAt(cellX, cellY + 1);
+    float4 tanU_br = uTangentAt(cellX + 1, cellY + 1);
+
+    float4 tanV_tl = vTangentAt(cellX, cellY);
+    float4 tanV_tr = vTangentAt(cellX + 1, cellY);
+    float4 tanV_bl = vTangentAt(cellX, cellY + 1);
+    float4 tanV_br = vTangentAt(cellX + 1, cellY + 1);
+
+    float oneMinusU = 1.0 - u;
+    float bu0 = oneMinusU * oneMinusU * oneMinusU;
+    float bu1 = 3.0 * oneMinusU * oneMinusU * u;
+    float bu2 = 3.0 * oneMinusU * u * u;
+    float bu3 = u * u * u;
+
+    // Top horizontal curve point
+    float2 p0 = bu0 * tl + bu1 * (tl + tanU_tl.zw) + bu2 * (tr + tanU_tr.xy) + bu3 * tr;
+    // Bottom horizontal curve point
+    float2 p1 = bu0 * bl + bu1 * (bl + tanU_bl.zw) + bu2 * (br + tanU_br.xy) + bu3 * br;
+
+    // Interpolated vertical tangents along U
+    float2 vTan0 = mix(tanV_tl.zw, tanV_tr.zw, u);
+    float2 vTan1 = mix(tanV_bl.xy, tanV_br.xy, u);
+
+    float oneMinusV = 1.0 - v;
+    float bv0 = oneMinusV * oneMinusV * oneMinusV;
+    float bv1 = 3.0 * oneMinusV * oneMinusV * v;
+    float bv2 = 3.0 * oneMinusV * v * v;
+    float bv3 = v * v * v;
+
+    return bv0 * p0 + bv1 * (p0 + vTan0) + bv2 * (p1 + vTan1) + bv3 * p1;
 }
 
 float4 evaluateColor(float2 uv) {
@@ -135,9 +167,6 @@ half4 main(float2 coord) {
     float2 uv = target;
     float epsilon = 0.002;
 
-    // Invert the warped bicubic surface using Levenberg-Marquardt iteration.
-    // Increased iteration limit for aggressive noise folding where LM falls back 
-    // to gradient descent and takes smaller steps.
     for (int iteration = 0; iteration < 5; iteration++) {
         float2 position = evaluatePosition(uv);
         float2 error = position - target;
@@ -150,47 +179,37 @@ half4 main(float2 coord) {
         float stepY = (uv.y + epsilon > 1.0) ? -epsilon : epsilon;
         float2 dy = (evaluatePosition(uv + float2(0.0, stepY)) - position) / stepY;
         
-        // Slightly higher lambda to heavily dampen oscillations in complex folds
         float lambda = 0.025;
         
-        // J^T * J
         float a = dot(dx, dx) + lambda;
         float b = dot(dx, dy);
         float c = dot(dy, dy) + lambda;
         
-        // J^T * error
         float2 jte = float2(dot(dx, error), dot(dy, error));
         
-        // Inverse of (J^T * J + lambda * I)
         float det = a * c - b * b;
+        if (abs(det) < 1e-5) break;
         float2 delta = float2(
             (c * jte.x - b * jte.y) / det,
             (a * jte.y - b * jte.x) / det
         );
         
-        // Limit the step size strictly to 20% of UV space to prevent 
-        // the solver from ping-ponging out of a fold crease.
         delta = clamp(delta, float2(-0.2, -0.2), float2(0.2, 0.2));
         
         uv -= delta;
         uv = clamp(uv, float2(0.0, 0.0), float2(1.0, 1.0));
     }
 
-    // Evaluate patch colors in perceptual gamma / sRGB space (un-premultiplied)
     half4 col = half4(clamp(evaluateColor(uv), float4(0.0, 0.0, 0.0, 0.0), float4(1.0, 1.0, 1.0, 1.0)));
 
-    // Apply optional noise grain
-    if (uDustIntensity > 0.0) {
-        float noise = random(coord + float2(uDustPhase, uDustPhase * 0.73));
-        // Blend noise with the color, keeping the alpha intact
-        col.rgb = mix(col.rgb, half3(noise), half(uDustIntensity));
+    if (uGrainIntensity > 0.0) {
+        float noise = hash(coord, uGrainSeed);
+        col.rgb += half3(half(noise - 0.5) * half(uGrainIntensity));
+        col.rgb = clamp(col.rgb, half3(0.0), half3(1.0));
     }
 
-    // Convert perceptual sRGB to linear working space so Skia's output to sRGB framebuffer
-    // preserves the exact original non-linear GLES20 color blending curve without washing out.
     half3 linearRgb = toLinear(col.rgb);
 
-    // Premultiply alpha right before returning from main()
     return half4(linearRgb * col.a, col.a);
 }
 """

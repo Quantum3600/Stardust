@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "io.github.quantum3600"
-version = "1.0.3"
+version = "1.0.4"
 android {
     namespace = "io.github.quantum3600.stardust"
     compileSdk = 35
@@ -61,10 +61,10 @@ mavenPublishing {
     if (project.hasProperty("signingInMemoryKey") || project.hasProperty("signing.keyId")) {
         signAllPublications()
     }
-    coordinates("com.github.quantum3600", "composemeshgradientcmp", version.toString())
+    coordinates("com.github.quantum3600", "stardust", version.toString())
 
     pom {
-        name.set("Compose Mesh Gradient Multiplatform")
+        name.set("Stardust - Mesh Gradient for Multiplatform")
         description.set("A dynamic mesh gradient library for Compose Multiplatform.")
         url.set("https://github.com/quantum3600/composemeshgradient")
         licenses {

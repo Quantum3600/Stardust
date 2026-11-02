@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import io.github.quantum3600.stardust.utils.MeshInterpolation
+import io.github.quantum3600.stardust.utils.computeDefaultTangents
+import io.github.quantum3600.stardust.utils.lerp
 import java.lang.reflect.Constructor
 import java.lang.reflect.Method
 import kotlin.math.max
@@ -25,6 +27,8 @@ internal actual class MeshGradientShader actual constructor(
     private val maxPackedPoints = (maxControlPoints + 1) / 2
     private val pointUniforms = FloatArray(maxPackedPoints * 4)
     private val colorUniforms = FloatArray(maxControlPoints * 4)
+    private val uTangentUniforms = FloatArray(maxControlPoints * 4)
+    private val vTangentUniforms = FloatArray(maxControlPoints * 4)
     private var currentBrush: Brush? = null
     private var currentSize = Size.Unspecified
     private var dirty = true
@@ -56,7 +60,14 @@ internal actual class MeshGradientShader actual constructor(
     private var currentDustIntensity: Float = 0f
     private var currentDustPhase: Float = 0f
 
-    actual fun update(points: Array<Offset>, colors: Array<Color>, dustIntensity: Float, dustPhase: Float) {
+    actual fun update(
+        points: Array<Offset>,
+        colors: Array<Color>,
+        uTangents: FloatArray?,
+        vTangents: FloatArray?,
+        dustIntensity: Float,
+        dustPhase: Float
+    ) {
         var changed = dirty
         if (currentDustIntensity != dustIntensity) {
             currentDustIntensity = dustIntensity
@@ -66,6 +77,25 @@ internal actual class MeshGradientShader actual constructor(
             currentDustPhase = dustPhase
             changed = true
         }
+
+        if (uTangents != null && vTangents != null) {
+            for (i in uTangents.indices) {
+                if (uTangentUniforms[i] != uTangents[i]) {
+                    uTangentUniforms[i] = uTangents[i]
+                    changed = true
+                }
+            }
+            for (i in vTangents.indices) {
+                if (vTangentUniforms[i] != vTangents[i]) {
+                    vTangentUniforms[i] = vTangents[i]
+                    changed = true
+                }
+            }
+        } else {
+            computeDefaultTangents(width, height, points, uTangentUniforms, vTangentUniforms)
+            changed = true
+        }
+
         for (i in points.indices) {
             val point = points[i]
             val color = colors[i]
@@ -113,8 +143,10 @@ internal actual class MeshGradientShader actual constructor(
                 resolution = floatArrayOf(size.width, size.height),
                 points = pointUniforms,
                 colors = colorUniforms,
-                dustIntensity = currentDustIntensity,
-                dustPhase = currentDustPhase,
+                uTangents = uTangentUniforms,
+                vTangents = vTangentUniforms,
+                grainIntensity = currentDustIntensity,
+                grainSeed = currentDustPhase,
             )
             currentBrush = object : ShaderBrush() {
                 override fun createShader(size: Size): androidx.compose.ui.graphics.Shader = shader
@@ -178,7 +210,6 @@ internal actual class MeshGradientShader actual constructor(
         initFallbackBuffers()
         val verts = fallbackVertices ?: return
         val cols = fallbackColors ?: return
-        val indices = fallbackIndices ?: return
 
         if (fallbackDirty || fallbackSize != size) {
             evaluateFallbackMesh(size, verts, cols)
@@ -196,7 +227,7 @@ internal actual class MeshGradientShader actual constructor(
                 0,
                 cols,
                 0,
-                indices,
+                fallbackIndices!!,
                 0,
                 indexCount,
                 fallbackPaint
@@ -214,6 +245,55 @@ internal actual class MeshGradientShader actual constructor(
         val clampedX = x.coerceIn(0, width - 1)
         val clampedY = y.coerceIn(0, height - 1)
         return cachedColors[clampedY * width + clampedX]
+    }
+
+    private fun evaluateCubicPatchPosition(
+        cellX: Int,
+        cellY: Int,
+        u: Float,
+        v: Float,
+        size: Size
+    ): Offset {
+        val tl = getCachedPoint(cellX, cellY)
+        val tr = getCachedPoint(cellX + 1, cellY)
+        val bl = getCachedPoint(cellX, cellY + 1)
+        val br = getCachedPoint(cellX + 1, cellY + 1)
+
+        val idxTL = cellY * width + cellX
+        val idxTR = cellY * width + (cellX + 1)
+        val idxBL = (cellY + 1) * width + cellX
+        val idxBR = (cellY + 1) * width + (cellX + 1)
+
+        val uTanTL_trailing = Offset(uTangentUniforms[idxTL * 4 + 2], uTangentUniforms[idxTL * 4 + 3])
+        val uTanTR_leading = Offset(uTangentUniforms[idxTR * 4 + 0], uTangentUniforms[idxTR * 4 + 1])
+        val uTanBL_trailing = Offset(uTangentUniforms[idxBL * 4 + 2], uTangentUniforms[idxBL * 4 + 3])
+        val uTanBR_leading = Offset(uTangentUniforms[idxBR * 4 + 0], uTangentUniforms[idxBR * 4 + 1])
+
+        val vTanTL_bottom = Offset(vTangentUniforms[idxTL * 4 + 2], vTangentUniforms[idxTL * 4 + 3])
+        val vTanTR_bottom = Offset(vTangentUniforms[idxTR * 4 + 2], vTangentUniforms[idxTR * 4 + 3])
+        val vTanBL_top = Offset(vTangentUniforms[idxBL * 4 + 0], vTangentUniforms[idxBL * 4 + 1])
+        val vTanBR_top = Offset(vTangentUniforms[idxBR * 4 + 0], vTangentUniforms[idxBR * 4 + 1])
+
+        val oneMinusU = 1f - u
+        val bu0 = oneMinusU * oneMinusU * oneMinusU
+        val bu1 = 3f * oneMinusU * oneMinusU * u
+        val bu2 = 3f * oneMinusU * u * u
+        val bu3 = u * u * u
+
+        val p0 = tl * bu0 + (tl + uTanTL_trailing) * bu1 + (tr + uTanTR_leading) * bu2 + tr * bu3
+        val p1 = bl * bu0 + (bl + uTanBL_trailing) * bu1 + (br + uTanBR_leading) * bu2 + br * bu3
+
+        val vTan0 = lerp(vTanTL_bottom, vTanTR_bottom, u)
+        val vTan1 = lerp(vTanBL_top, vTanBR_top, u)
+
+        val oneMinusV = 1f - v
+        val bv0 = oneMinusV * oneMinusV * oneMinusV
+        val bv1 = 3f * oneMinusV * oneMinusV * v
+        val bv2 = 3f * oneMinusV * v * v
+        val bv3 = v * v * v
+
+        val posNormalized = p0 * bv0 + (p0 + vTan0) * bv1 + (p1 + vTan1) * bv2 + p1 * bv3
+        return Offset(posNormalized.x * size.width, posNormalized.y * size.height)
     }
 
     private fun evaluateFallbackMesh(size: Size, verts: FloatArray, cols: IntArray) {
@@ -258,7 +338,6 @@ internal actual class MeshGradientShader actual constructor(
                     colA[rowIdx] = ca
                 }
             }
-            // Last point in row
             val lastIx = (width - 1) * subdivX
             val pLast = getCachedPoint(width - 1, gy)
             val cLast = getCachedColor(width - 1, gy)
@@ -271,57 +350,38 @@ internal actual class MeshGradientShader actual constructor(
             colA[lastRowIdx] = cLast.alpha
         }
 
-        // Pass 2: Interpolate along Y for each column
-        for (ix in 0 until totalX) {
-            for (gy in 0 until height - 1) {
-                val r0 = max(gy - 1, 0) * totalX + ix
-                val r1 = gy * totalX + ix
-                val r2 = (gy + 1) * totalX + ix
-                val r3 = min(gy + 2, height - 1) * totalX + ix
+        // Evaluate cubic patch positions and colors across grid
+        for (iy in 0 until totalY) {
+            val gridY = (iy.toFloat() / (totalY - 1)) * (height - 1)
+            val cellY = gridY.toInt().coerceIn(0, height - 2)
+            val v = (gridY - cellY).coerceIn(0f, 1f)
 
-                val p0x = posX[r0 * 2]; val p0y = posX[r0 * 2 + 1]
-                val p1x = posX[r1 * 2]; val p1y = posX[r1 * 2 + 1]
-                val p2x = posX[r2 * 2]; val p2y = posX[r2 * 2 + 1]
-                val p3x = posX[r3 * 2]; val p3y = posX[r3 * 2 + 1]
+            for (ix in 0 until totalX) {
+                val gridX = (ix.toFloat() / (totalX - 1)) * (width - 1)
+                val cellX = gridX.toInt().coerceIn(0, width - 2)
+                val u = (gridX - cellX).coerceIn(0f, 1f)
 
-                val c0r = colR[r0]; val c0g = colG[r0]; val c0b = colB[r0]; val c0a = colA[r0]
-                val c1r = colR[r1]; val c1g = colG[r1]; val c1b = colB[r1]; val c1a = colA[r1]
-                val c2r = colR[r2]; val c2g = colG[r2]; val c2b = colB[r2]; val c2a = colA[r2]
-                val c3r = colR[r3]; val c3g = colG[r3]; val c3b = colB[r3]; val c3a = colA[r3]
+                val pos = evaluateCubicPatchPosition(cellX, cellY, u, v, size)
+                val outIdx = iy * totalX + ix
+                verts[outIdx * 2] = pos.x
+                verts[outIdx * 2 + 1] = pos.y
 
-                for (i in 0 until subdivY) {
-                    val t = i.toFloat() / subdivY.toFloat()
-                    val px = MeshInterpolation.catmullRom(p0x, p1x, p2x, p3x, t)
-                    val py = MeshInterpolation.catmullRom(p0y, p1y, p2y, p3y, t)
-                    val cr = MeshInterpolation.catmullRom(c0r, c1r, c2r, c3r, t)
-                    val cg = MeshInterpolation.catmullRom(c0g, c1g, c2g, c3g, t)
-                    val cb = MeshInterpolation.catmullRom(c0b, c1b, c2b, c3b, t)
-                    val ca = MeshInterpolation.catmullRom(c0a, c1a, c2a, c3a, t)
+                val r0 = max(cellY - 1, 0) * totalX + ix
+                val r1 = cellY * totalX + ix
+                val r2 = (cellY + 1) * totalX + ix
+                val r3 = min(cellY + 2, height - 1) * totalX + ix
 
-                    val iy = gy * subdivY + i
-                    val outIdx = iy * totalX + ix
-                    verts[outIdx * 2] = px * size.width
-                    verts[outIdx * 2 + 1] = py * size.height
+                val cr = MeshInterpolation.catmullRom(colR[r0], colR[r1], colR[r2], colR[r3], v)
+                val cg = MeshInterpolation.catmullRom(colG[r0], colG[r1], colG[r2], colG[r3], v)
+                val cb = MeshInterpolation.catmullRom(colB[r0], colB[r1], colB[r2], colB[r3], v)
+                val ca = MeshInterpolation.catmullRom(colA[r0], colA[r1], colA[r2], colA[r3], v)
 
-                    val aInt = (ca.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-                    val rInt = (cr.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-                    val gInt = (cg.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-                    val bInt = (cb.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-                    cols[outIdx] = (aInt shl 24) or (rInt shl 16) or (gInt shl 8) or bInt
-                }
+                val aInt = (ca.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+                val rInt = (cr.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+                val gInt = (cg.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+                val bInt = (cb.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+                cols[outIdx] = (aInt shl 24) or (rInt shl 16) or (gInt shl 8) or bInt
             }
-            // Last point in column
-            val lastIy = (height - 1) * subdivY
-            val rLast = (height - 1) * totalX + ix
-            val outLastIdx = lastIy * totalX + ix
-            verts[outLastIdx * 2] = posX[rLast * 2] * size.width
-            verts[outLastIdx * 2 + 1] = posX[rLast * 2 + 1] * size.height
-
-            val aInt = (colA[rLast].coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-            val rInt = (colR[rLast].coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-            val gInt = (colG[rLast].coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-            val bInt = (colB[rLast].coerceIn(0f, 1f) * 255f + 0.5f).toInt()
-            cols[outLastIdx] = (aInt shl 24) or (rInt shl 16) or (gInt shl 8) or bInt
         }
     }
 
@@ -367,8 +427,10 @@ private object RuntimeShaderReflection {
         resolution: FloatArray,
         points: FloatArray,
         colors: FloatArray,
-        dustIntensity: Float,
-        dustPhase: Float,
+        uTangents: FloatArray,
+        vTangents: FloatArray,
+        grainIntensity: Float,
+        grainSeed: Float,
     ): Shader {
         val instance = requireNotNull(constructor).newInstance(source)
         requireNotNull(setFloatUniform).invoke(instance, "uResolution", resolution)
@@ -376,8 +438,10 @@ private object RuntimeShaderReflection {
         requireNotNull(setIntUniform).invoke(instance, "uHeight", height)
         requireNotNull(setFloatUniform).invoke(instance, "uPackedPoints", points)
         requireNotNull(setFloatUniform).invoke(instance, "uColors", colors)
-        requireNotNull(setFloatUniformScalar).invoke(instance, "uDustIntensity", dustIntensity)
-        requireNotNull(setFloatUniformScalar).invoke(instance, "uDustPhase", dustPhase)
+        requireNotNull(setFloatUniform).invoke(instance, "uUTangents", uTangents)
+        requireNotNull(setFloatUniform).invoke(instance, "uVTangents", vTangents)
+        requireNotNull(setFloatUniformScalar).invoke(instance, "uGrainIntensity", grainIntensity)
+        requireNotNull(setFloatUniformScalar).invoke(instance, "uGrainSeed", grainSeed)
         return instance as Shader
     }
 }

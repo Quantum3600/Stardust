@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import io.github.quantum3600.stardust.utils.computeDefaultTangents
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 import org.jetbrains.skia.Shader
@@ -19,6 +20,8 @@ internal actual class MeshGradientShader actual constructor(
     private val maxPackedPoints = (maxControlPoints + 1) / 2
     private val pointUniforms = FloatArray(maxPackedPoints * 4)
     private val colorUniforms = FloatArray(maxControlPoints * 4)
+    private val uTangentUniforms = FloatArray(maxControlPoints * 4)
+    private val vTangentUniforms = FloatArray(maxControlPoints * 4)
     private var dirty = true
     private var currentBrush: Brush? = null
     private var currentSize = Size.Unspecified
@@ -27,7 +30,14 @@ internal actual class MeshGradientShader actual constructor(
     private var currentDustIntensity: Float = 0f
     private var currentDustPhase: Float = 0f
 
-    actual fun update(points: Array<Offset>, colors: Array<Color>, dustIntensity: Float, dustPhase: Float) {
+    actual fun update(
+        points: Array<Offset>,
+        colors: Array<Color>,
+        uTangents: FloatArray?,
+        vTangents: FloatArray?,
+        dustIntensity: Float,
+        dustPhase: Float
+    ) {
         var changed = dirty
         if (currentDustIntensity != dustIntensity) {
             currentDustIntensity = dustIntensity
@@ -37,6 +47,25 @@ internal actual class MeshGradientShader actual constructor(
             currentDustPhase = dustPhase
             changed = true
         }
+
+        if (uTangents != null && vTangents != null) {
+            for (i in uTangents.indices) {
+                if (uTangentUniforms[i] != uTangents[i]) {
+                    uTangentUniforms[i] = uTangents[i]
+                    changed = true
+                }
+            }
+            for (i in vTangents.indices) {
+                if (vTangentUniforms[i] != vTangents[i]) {
+                    vTangentUniforms[i] = vTangents[i]
+                    changed = true
+                }
+            }
+        } else {
+            computeDefaultTangents(width, height, points, uTangentUniforms, vTangentUniforms)
+            changed = true
+        }
+
         for (i in points.indices) {
             val px = i * 2
             val cx = i * 4
@@ -71,8 +100,10 @@ internal actual class MeshGradientShader actual constructor(
         builder.uniform("uHeight", height)
         builder.uniform("uPackedPoints", pointUniforms)
         builder.uniform("uColors", colorUniforms)
-        builder.uniform("uDustIntensity", currentDustIntensity)
-        builder.uniform("uDustPhase", currentDustPhase)
+        builder.uniform("uUTangents", uTangentUniforms)
+        builder.uniform("uVTangents", vTangentUniforms)
+        builder.uniform("uGrainIntensity", currentDustIntensity)
+        builder.uniform("uGrainSeed", currentDustPhase)
         currentShader?.close()
         currentShader = builder.makeShader()
         currentBrush = object : ShaderBrush() {

@@ -15,6 +15,25 @@ data class BezierPoint(
     val bottomControlPoint: Offset = position
 ) {
     /**
+     * Relative horizontal tangent handle pointing left (leading).
+     */
+    val uTangentLeading: Offset get() = leadingControlPoint - position
+
+    /**
+     * Relative horizontal tangent handle pointing right (trailing).
+     */
+    val uTangentTrailing: Offset get() = trailingControlPoint - position
+
+    /**
+     * Relative vertical tangent handle pointing up (top).
+     */
+    val vTangentTop: Offset get() = topControlPoint - position
+
+    /**
+     * Relative vertical tangent handle pointing down (bottom).
+     */
+    val vTangentBottom: Offset get() = bottomControlPoint - position
+    /**
      * Creates a simple BezierPoint with just a position (no control points)
      */
     constructor(x: Float, y: Float) : this(Offset(x, y))
@@ -57,6 +76,25 @@ data class BezierPoint(
                 topControlPoint = pos + topOffset,
                 trailingControlPoint = pos + trailingOffset,
                 bottomControlPoint = pos + bottomOffset
+            )
+        }
+
+        /**
+         * Creates a BezierPoint at [position] with directional tangent handle offsets.
+         */
+        fun withTangents(
+            position: Offset,
+            uTangentLeading: Offset = Offset.Zero,
+            uTangentTrailing: Offset = Offset.Zero,
+            vTangentTop: Offset = Offset.Zero,
+            vTangentBottom: Offset = Offset.Zero
+        ): BezierPoint {
+            return BezierPoint(
+                position = position,
+                leadingControlPoint = position + uTangentLeading,
+                topControlPoint = position + vTangentTop,
+                trailingControlPoint = position + uTangentTrailing,
+                bottomControlPoint = position + vTangentBottom
             )
         }
     }

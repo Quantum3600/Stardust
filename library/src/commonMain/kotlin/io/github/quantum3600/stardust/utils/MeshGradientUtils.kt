@@ -52,6 +52,7 @@ fun generateMeshPoints(width: Int, height: Int, randomness: Float = 0.1f): Array
         }
     }
 }
+
 /**
  * Generates a full color array for a mesh from a list of 1 or 2 base colors.
  *
@@ -72,7 +73,6 @@ fun generateMeshColors(
     require(baseColors.isNotEmpty() && baseColors.size <= 2) { "baseColors list must contain 1 or 2 colors." }
     require(colorVariance in 0f..1f) { "colorVariance must be between 0.0 and 1.0" }
 
-
     if (baseColors.size == 1) {
         // If only one color, fill the mesh with it.
         return Array(width * height) { baseColors[0] }
@@ -91,6 +91,100 @@ fun generateMeshColors(
             applyColorVariance(interpolatedColor, colorVariance)
         } else {
             interpolatedColor
+        }
+    }
+}
+
+/**
+ * Generates a full color array for a mesh using 2D spatial grid coordinates
+ * fx = col / (width - 1) and fy = row / (height - 1), smoothly blending colors across
+ * 4 corners (top-left, top-right, bottom-left, bottom-right) to produce rich,
+ * multi-directional (diagonal, radial, and 4-corner) color gradients.
+ *
+ * @param width The number of horizontal points.
+ * @param height The number of vertical points.
+ * @param topLeft Color for the top-left corner.
+ * @param topRight Color for the top-right corner.
+ * @param bottomLeft Color for the bottom-left corner.
+ * @param bottomRight Color for the bottom-right corner.
+ * @param colorVariance Optional random color shift applied to HSL components (0f to 1f).
+ * @return An array of [Color] values of size width * height.
+ */
+fun generateSpatialGridColors(
+    width: Int,
+    height: Int,
+    topLeft: Color,
+    topRight: Color,
+    bottomLeft: Color,
+    bottomRight: Color,
+    colorVariance: Float = 0.0f
+): Array<Color> {
+    require(width > 1 && height > 1) { "Mesh dimensions must be greater than 1" }
+    require(colorVariance in 0f..1f) { "colorVariance must be between 0.0 and 1.0" }
+
+    return Array(width * height) { i ->
+        val col = i % width
+        val row = i / width
+        val fx = col.toFloat() / (width - 1).toFloat()
+        val fy = row.toFloat() / (height - 1).toFloat()
+
+        val top = lerp(topLeft, topRight, fx)
+        val bottom = lerp(bottomLeft, bottomRight, fx)
+        val blended = lerp(top, bottom, fy)
+
+        if (colorVariance > 0f) {
+            applyColorVariance(blended, colorVariance)
+        } else {
+            blended
+        }
+    }
+}
+
+/**
+ * Computes default Catmull-Rom tangent vectors for a 2D grid of [points] of size [width] x [height].
+ */
+internal fun computeDefaultTangents(
+    width: Int,
+    height: Int,
+    points: Array<Offset>,
+    uTangentsOut: FloatArray,
+    vTangentsOut: FloatArray
+) {
+    for (r in 0 until height) {
+        for (c in 0 until width) {
+            val idx = r * width + c
+            val uLeading = when {
+                c > 0 && c < width - 1 -> (points[r * width + (c - 1)] - points[r * width + (c + 1)]) / 6f
+                c == 0 -> (points[r * width + 0] - points[r * width + 1]) / 3f
+                else -> (points[r * width + (width - 2)] - points[r * width + (width - 1)]) / 3f
+            }
+            val uTrailing = when {
+                c > 0 && c < width - 1 -> (points[r * width + (c + 1)] - points[r * width + (c - 1)]) / 6f
+                c == 0 -> (points[r * width + 1] - points[r * width + 0]) / 3f
+                else -> (points[r * width + (width - 1)] - points[r * width + (width - 2)]) / 3f
+            }
+            val vTop = when {
+                r > 0 && r < height - 1 -> (points[(r - 1) * width + c] - points[(r + 1) * width + c]) / 6f
+                r == 0 -> (points[0 * width + c] - points[1 * width + c]) / 3f
+                else -> (points[(height - 2) * width + c] - points[(height - 1) * width + c]) / 3f
+            }
+            val vBottom = when {
+                r > 0 && r < height - 1 -> (points[(r + 1) * width + c] - points[(r - 1) * width + c]) / 6f
+                r == 0 -> (points[1 * width + c] - points[0 * width + c]) / 3f
+                else -> (points[(height - 1) * width + c] - points[(height - 2) * width + c]) / 3f
+            }
+
+            val uBase = idx * 4
+            uTangentsOut[uBase + 0] = uLeading.x
+            uTangentsOut[uBase + 1] = uLeading.y
+            uTangentsOut[uBase + 2] = uTrailing.x
+            uTangentsOut[uBase + 3] = uTrailing.y
+
+            val vBase = idx * 4
+            vTangentsOut[vBase + 0] = vTop.x
+            vTangentsOut[vBase + 1] = vTop.y
+            vTangentsOut[vBase + 2] = vBottom.x
+            vTangentsOut[vBase + 3] = vBottom.y
         }
     }
 }
@@ -129,8 +223,6 @@ fun rememberThemedMeshData(
         MeshData(points, colors)
     }
 }
-
-
 
 /**
  * Applies random variance to a color's HSL values.

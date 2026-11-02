@@ -12,12 +12,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 
 /**
- * A state holder for the [MeshGradient] that allows for programmatic animation of control points.
+ * A state holder for [StardustMesh] that allows for programmatic animation of control points.
  *
  * @param initialPoints The starting positions of the mesh's control points.
+ * @param initialColors The starting colors of the mesh's control points.
  */
 @Stable
-class MeshGradientState(
+class StardustMeshState(
     initialPoints: Array<Offset>,
     initialColors: Array<Color>
 ) {
@@ -31,10 +32,10 @@ class MeshGradientState(
     }
 
     // -------- Backward-compatible properties (will allocate when accessed) --------
-    val points: List<Offset> get() = _points.map { it.value }   // legacy-friendly but allocates
-    val colors: List<Color> get() = _colors                     // existing callers OK
+    val points: List<Offset> get() = _points.map { it.value }
+    val colors: List<Color> get() = _colors
 
-    // -------- New no-allocation snapshot arrays for renderer --------
+    // -------- Snapshot arrays for renderer --------
     private val snapshotPoints = FloatArray(_points.size * 2)   // x,y pairs
     private val snapshotColors = FloatArray(_colors.size * 4)   // r,g,b,a
 
@@ -76,17 +77,28 @@ class MeshGradientState(
     }
 }
 
+/** Backward-compatible typealias for [StardustMeshState]. */
+typealias MeshGradientState = StardustMeshState
+
 /**
- * Creates and remembers a [MeshGradientState].
+ * Creates and remembers a [StardustMeshState].
  *
  * @param points The initial list of control points for the mesh.
+ * @param colors The initial list of colors for the mesh.
  */
+@Composable
+fun rememberStardustMeshState(
+    points: Array<Offset>,
+    colors: Array<Color>
+): StardustMeshState {
+    return remember(points) {
+        StardustMeshState(points, colors)
+    }
+}
+
+/** Backward-compatible helper alias for [rememberStardustMeshState]. */
 @Composable
 fun rememberMeshGradientState(
     points: Array<Offset>,
     colors: Array<Color>
-): MeshGradientState {
-    return remember(points) {
-        MeshGradientState(points, colors)
-    }
-}
+): StardustMeshState = rememberStardustMeshState(points, colors)

@@ -12,7 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.quantum3600.stardust.rememberMeshGradientState
+import io.github.quantum3600.stardust.rememberStardustMeshState
 import kotlinx.coroutines.launch
 
 @Composable
@@ -67,7 +67,7 @@ fun rememberSimplexAnimatedMesh(
     val initialPoints = remember(width, height) {
         generateMeshPoints(width, height, randomness = 0f)
     }
-    val meshState = rememberMeshGradientState(points = initialPoints, colors = colors.toTypedArray())
+    val meshState = rememberStardustMeshState(points = initialPoints, colors = colors.toTypedArray())
 
     LaunchedEffect(Unit) {
         var time = 0f
