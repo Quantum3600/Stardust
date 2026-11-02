@@ -142,6 +142,7 @@ fun generateSpatialGridColors(
 
 /**
  * Computes default Catmull-Rom tangent vectors for a 2D grid of [points] of size [width] x [height].
+ * Uses zero-allocation scalar float math.
  */
 internal fun computeDefaultTangents(
     width: Int,
@@ -151,40 +152,163 @@ internal fun computeDefaultTangents(
     vTangentsOut: FloatArray
 ) {
     for (r in 0 until height) {
+        val rOffset = r * width
         for (c in 0 until width) {
-            val idx = r * width + c
-            val uLeading = when {
-                c > 0 && c < width - 1 -> (points[r * width + (c - 1)] - points[r * width + (c + 1)]) / 6f
-                c == 0 -> (points[r * width + 0] - points[r * width + 1]) / 3f
-                else -> (points[r * width + (width - 2)] - points[r * width + (width - 1)]) / 3f
+            val idx = rOffset + c
+            val curr = points[idx]
+
+            val uLeadingX: Float
+            val uLeadingY: Float
+            val uTrailingX: Float
+            val uTrailingY: Float
+            if (c > 0 && c < width - 1) {
+                val prev = points[rOffset + (c - 1)]
+                val next = points[rOffset + (c + 1)]
+                uLeadingX = (prev.x - next.x) / 6f
+                uLeadingY = (prev.y - next.y) / 6f
+                uTrailingX = (next.x - prev.x) / 6f
+                uTrailingY = (next.y - prev.y) / 6f
+            } else if (c == 0) {
+                val next = points[rOffset + 1]
+                uLeadingX = (curr.x - next.x) / 3f
+                uLeadingY = (curr.y - next.y) / 3f
+                uTrailingX = (next.x - curr.x) / 3f
+                uTrailingY = (next.y - curr.y) / 3f
+            } else {
+                val prev = points[rOffset + (width - 2)]
+                uLeadingX = (prev.x - curr.x) / 3f
+                uLeadingY = (prev.y - curr.y) / 3f
+                uTrailingX = (curr.x - prev.x) / 3f
+                uTrailingY = (curr.y - prev.y) / 3f
             }
-            val uTrailing = when {
-                c > 0 && c < width - 1 -> (points[r * width + (c + 1)] - points[r * width + (c - 1)]) / 6f
-                c == 0 -> (points[r * width + 1] - points[r * width + 0]) / 3f
-                else -> (points[r * width + (width - 1)] - points[r * width + (width - 2)]) / 3f
-            }
-            val vTop = when {
-                r > 0 && r < height - 1 -> (points[(r - 1) * width + c] - points[(r + 1) * width + c]) / 6f
-                r == 0 -> (points[0 * width + c] - points[1 * width + c]) / 3f
-                else -> (points[(height - 2) * width + c] - points[(height - 1) * width + c]) / 3f
-            }
-            val vBottom = when {
-                r > 0 && r < height - 1 -> (points[(r + 1) * width + c] - points[(r - 1) * width + c]) / 6f
-                r == 0 -> (points[1 * width + c] - points[0 * width + c]) / 3f
-                else -> (points[(height - 1) * width + c] - points[(height - 2) * width + c]) / 3f
+
+            val vTopX: Float
+            val vTopY: Float
+            val vBottomX: Float
+            val vBottomY: Float
+            if (r > 0 && r < height - 1) {
+                val prev = points[(r - 1) * width + c]
+                val next = points[(r + 1) * width + c]
+                vTopX = (prev.x - next.x) / 6f
+                vTopY = (prev.y - next.y) / 6f
+                vBottomX = (next.x - prev.x) / 6f
+                vBottomY = (next.y - prev.y) / 6f
+            } else if (r == 0) {
+                val next = points[1 * width + c]
+                vTopX = (curr.x - next.x) / 3f
+                vTopY = (curr.y - next.y) / 3f
+                vBottomX = (next.x - curr.x) / 3f
+                vBottomY = (next.y - curr.y) / 3f
+            } else {
+                val prev = points[(height - 2) * width + c]
+                vTopX = (prev.x - curr.x) / 3f
+                vTopY = (prev.y - curr.y) / 3f
+                vBottomX = (curr.x - prev.x) / 3f
+                vBottomY = (curr.y - prev.y) / 3f
             }
 
             val uBase = idx * 4
-            uTangentsOut[uBase + 0] = uLeading.x
-            uTangentsOut[uBase + 1] = uLeading.y
-            uTangentsOut[uBase + 2] = uTrailing.x
-            uTangentsOut[uBase + 3] = uTrailing.y
+            uTangentsOut[uBase + 0] = uLeadingX
+            uTangentsOut[uBase + 1] = uLeadingY
+            uTangentsOut[uBase + 2] = uTrailingX
+            uTangentsOut[uBase + 3] = uTrailingY
 
             val vBase = idx * 4
-            vTangentsOut[vBase + 0] = vTop.x
-            vTangentsOut[vBase + 1] = vTop.y
-            vTangentsOut[vBase + 2] = vBottom.x
-            vTangentsOut[vBase + 3] = vBottom.y
+            vTangentsOut[vBase + 0] = vTopX
+            vTangentsOut[vBase + 1] = vTopY
+            vTangentsOut[vBase + 2] = vBottomX
+            vTangentsOut[vBase + 3] = vBottomY
+        }
+    }
+}
+
+/**
+ * Computes default Catmull-Rom tangent vectors for a flat [points] FloatArray [x0, y0, x1, y1, ...].
+ * Uses zero-allocation scalar float math.
+ */
+internal fun computeDefaultTangents(
+    width: Int,
+    height: Int,
+    points: FloatArray,
+    uTangentsOut: FloatArray,
+    vTangentsOut: FloatArray
+) {
+    for (r in 0 until height) {
+        val rOffset = r * width
+        for (c in 0 until width) {
+            val idx = rOffset + c
+            val currPx = points[idx * 2]
+            val currPy = points[idx * 2 + 1]
+
+            val uLeadingX: Float
+            val uLeadingY: Float
+            val uTrailingX: Float
+            val uTrailingY: Float
+            if (c > 0 && c < width - 1) {
+                val prevPx = points[(rOffset + (c - 1)) * 2]
+                val prevPy = points[(rOffset + (c - 1)) * 2 + 1]
+                val nextPx = points[(rOffset + (c + 1)) * 2]
+                val nextPy = points[(rOffset + (c + 1)) * 2 + 1]
+                uLeadingX = (prevPx - nextPx) / 6f
+                uLeadingY = (prevPy - nextPy) / 6f
+                uTrailingX = (nextPx - prevPx) / 6f
+                uTrailingY = (nextPy - prevPy) / 6f
+            } else if (c == 0) {
+                val nextPx = points[(rOffset + 1) * 2]
+                val nextPy = points[(rOffset + 1) * 2 + 1]
+                uLeadingX = (currPx - nextPx) / 3f
+                uLeadingY = (currPy - nextPy) / 3f
+                uTrailingX = (nextPx - currPx) / 3f
+                uTrailingY = (nextPy - currPy) / 3f
+            } else {
+                val prevPx = points[(rOffset + (width - 2)) * 2]
+                val prevPy = points[(rOffset + (width - 2)) * 2 + 1]
+                uLeadingX = (prevPx - currPx) / 3f
+                uLeadingY = (prevPy - currPy) / 3f
+                uTrailingX = (currPx - prevPx) / 3f
+                uTrailingY = (currPy - prevPy) / 3f
+            }
+
+            val vTopX: Float
+            val vTopY: Float
+            val vBottomX: Float
+            val vBottomY: Float
+            if (r > 0 && r < height - 1) {
+                val prevPx = points[((r - 1) * width + c) * 2]
+                val prevPy = points[((r - 1) * width + c) * 2 + 1]
+                val nextPx = points[((r + 1) * width + c) * 2]
+                val nextPy = points[((r + 1) * width + c) * 2 + 1]
+                vTopX = (prevPx - nextPx) / 6f
+                vTopY = (prevPy - nextPy) / 6f
+                vBottomX = (nextPx - prevPx) / 6f
+                vBottomY = (nextPy - prevPy) / 6f
+            } else if (r == 0) {
+                val nextPx = points[(1 * width + c) * 2]
+                val nextPy = points[(1 * width + c) * 2 + 1]
+                vTopX = (currPx - nextPx) / 3f
+                vTopY = (currPy - nextPy) / 3f
+                vBottomX = (nextPx - currPx) / 3f
+                vBottomY = (nextPy - currPy) / 3f
+            } else {
+                val prevPx = points[((height - 2) * width + c) * 2]
+                val prevPy = points[((height - 2) * width + c) * 2 + 1]
+                vTopX = (prevPx - currPx) / 3f
+                vTopY = (prevPy - currPy) / 3f
+                vBottomX = (currPx - prevPx) / 3f
+                vBottomY = (currPy - prevPy) / 3f
+            }
+
+            val uBase = idx * 4
+            uTangentsOut[uBase + 0] = uLeadingX
+            uTangentsOut[uBase + 1] = uLeadingY
+            uTangentsOut[uBase + 2] = uTrailingX
+            uTangentsOut[uBase + 3] = uTrailingY
+
+            val vBase = idx * 4
+            vTangentsOut[vBase + 0] = vTopX
+            vTangentsOut[vBase + 1] = vTopY
+            vTangentsOut[vBase + 2] = vBottomX
+            vTangentsOut[vBase + 3] = vBottomY
         }
     }
 }

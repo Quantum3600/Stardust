@@ -1,16 +1,65 @@
 package io.github.quantum3600.stardust
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import io.github.quantum3600.stardust.data.BezierPoint
 import kotlin.jvm.JvmName
+
+/**
+ * High-performance bicubic mesh gradient driven by primitive FloatArray providers.
+ * Bypasses Compose Recomposition and Layout passes entirely during animation.
+ */
+@Composable
+fun StardustMesh(
+    width: Int,
+    height: Int,
+    pointsProvider: () -> FloatArray,
+    colorsProvider: () -> FloatArray,
+    modifier: Modifier = Modifier,
+    uTangentsProvider: (() -> FloatArray)? = null,
+    vTangentsProvider: (() -> FloatArray)? = null,
+    dustIntensityProvider: () -> Float = { 0f },
+    dustPhaseProvider: () -> Float = { 0f },
+    downsampleFactorProvider: () -> Float = { 1f },
+) {
+    require(width > 1 && height > 1) { "Mesh dimensions must be greater than 1" }
+    require(width * height <= MeshGradientShader.maxControlPoints) {
+        "Mesh gradients support at most ${MeshGradientShader.maxControlPoints} control points"
+    }
+
+    val shader = remember(width, height) {
+        MeshGradientShader(width, height)
+    }
+
+    DisposableEffect(shader) {
+        onDispose {
+            shader.close()
+        }
+    }
+
+    Spacer(
+        modifier = modifier.drawBehind {
+            val points = pointsProvider()
+            val colors = colorsProvider()
+            val uTangents = uTangentsProvider?.invoke()
+            val vTangents = vTangentsProvider?.invoke()
+            val dustIntensity = dustIntensityProvider()
+            val dustPhase = dustPhaseProvider()
+            val downsampleFactor = downsampleFactorProvider()
+
+            shader.update(points, colors, uTangents, vTangents, dustIntensity, dustPhase)
+            shader.draw(this, downsampleFactor)
+        }
+    )
+}
 
 /**
  * Draws a bicubic mesh gradient with a platform GPU runtime shader.
@@ -53,21 +102,36 @@ fun StardustMesh(
         }
     }
 
-    val shader = remember(width, height) {
-        MeshGradientShader(width, height)
-    }
-
-    DisposableEffect(shader) {
-        onDispose {
-            shader.close()
+    val flatPoints = remember(points) {
+        val arr = FloatArray(points.size * 2)
+        for (i in points.indices) {
+            arr[i * 2] = points[i].x
+            arr[i * 2 + 1] = points[i].y
         }
+        arr
+    }
+    val flatColors = remember(colors) {
+        val arr = FloatArray(colors.size * 4)
+        for (i in colors.indices) {
+            arr[i * 4] = colors[i].red
+            arr[i * 4 + 1] = colors[i].green
+            arr[i * 4 + 2] = colors[i].blue
+            arr[i * 4 + 3] = colors[i].alpha
+        }
+        arr
     }
 
-    Canvas(modifier) {
-        val effectivePhase = if (dustAnimationSpeed > 0f) dustPhase.floatValue else dustAnimationSpeed
-        shader.update(points, colors, uTangents, vTangents, dustIntensity, effectivePhase)
-        drawMeshGradient(shader)
-    }
+    StardustMesh(
+        width = width,
+        height = height,
+        pointsProvider = { flatPoints },
+        colorsProvider = { flatColors },
+        modifier = modifier,
+        uTangentsProvider = if (uTangents != null) { { uTangents } } else null,
+        vTangentsProvider = if (vTangents != null) { { vTangents } } else null,
+        dustIntensityProvider = { dustIntensity },
+        dustPhaseProvider = { if (dustAnimationSpeed > 0f) dustPhase.floatValue else dustAnimationSpeed },
+    )
 }
 
 /**
@@ -83,15 +147,27 @@ fun StardustMesh(
     dustAnimationSpeed: Float = 0f,
     state: StardustMeshState,
 ) {
+    val dustPhase = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    androidx.compose.runtime.LaunchedEffect(dustAnimationSpeed) {
+        if (dustAnimationSpeed > 0f) {
+            var lastTime = androidx.compose.runtime.withFrameNanos { it }
+            while (true) {
+                val frameTime = androidx.compose.runtime.withFrameNanos { it }
+                val dt = (frameTime - lastTime) / 1_000_000_000f
+                lastTime = frameTime
+                dustPhase.floatValue += dt * dustAnimationSpeed
+            }
+        }
+    }
+
     StardustMesh(
-        modifier = modifier,
         width = width,
         height = height,
-        globalSubdivisions = globalSubdivisions,
-        dustIntensity = dustIntensity,
-        dustAnimationSpeed = dustAnimationSpeed,
-        points = state.points.toTypedArray(),
-        colors = state.colors.toTypedArray(),
+        pointsProvider = { state.pointsArray() },
+        colorsProvider = { state.colorsArray() },
+        modifier = modifier,
+        dustIntensityProvider = { dustIntensity },
+        dustPhaseProvider = { if (dustAnimationSpeed > 0f) dustPhase.floatValue else dustAnimationSpeed },
     )
 }
 
@@ -118,10 +194,24 @@ fun StardustMesh(
     }
 
     val flatPoints = remember(bezierPoints) {
-        bezierPoints.flatten().map { it.position }.toTypedArray()
+        val points = bezierPoints.flatten()
+        val arr = FloatArray(points.size * 2)
+        points.forEachIndexed { i, bp ->
+            arr[i * 2] = bp.position.x
+            arr[i * 2 + 1] = bp.position.y
+        }
+        arr
     }
     val flatColors = remember(colors) {
-        colors.flatten().toTypedArray()
+        val cols = colors.flatten()
+        val arr = FloatArray(cols.size * 4)
+        cols.forEachIndexed { i, c ->
+            arr[i * 4] = c.red
+            arr[i * 4 + 1] = c.green
+            arr[i * 4 + 2] = c.blue
+            arr[i * 4 + 3] = c.alpha
+        }
+        arr
     }
     val uTangents = remember(bezierPoints) {
         val arr = FloatArray(MeshGradientShader.maxControlPoints * 4)
@@ -145,15 +235,15 @@ fun StardustMesh(
     }
 
     StardustMesh(
-        modifier = modifier,
         width = width,
         height = height,
-        points = flatPoints,
-        colors = flatColors,
-        uTangents = uTangents,
-        vTangents = vTangents,
-        dustIntensity = grainIntensity,
-        dustAnimationSpeed = grainSeed
+        pointsProvider = { flatPoints },
+        colorsProvider = { flatColors },
+        modifier = modifier,
+        uTangentsProvider = { uTangents },
+        vTangentsProvider = { vTangents },
+        dustIntensityProvider = { grainIntensity },
+        dustPhaseProvider = { grainSeed },
     )
 }
 
@@ -181,20 +271,34 @@ fun StardustMesh(
     }
 
     val flatPoints = remember(points) {
-        points.flatten().toTypedArray()
+        val pts = points.flatten()
+        val arr = FloatArray(pts.size * 2)
+        pts.forEachIndexed { i, p ->
+            arr[i * 2] = p.x
+            arr[i * 2 + 1] = p.y
+        }
+        arr
     }
     val flatColors = remember(colors) {
-        colors.flatten().toTypedArray()
+        val cols = colors.flatten()
+        val arr = FloatArray(cols.size * 4)
+        cols.forEachIndexed { i, c ->
+            arr[i * 4] = c.red
+            arr[i * 4 + 1] = c.green
+            arr[i * 4 + 2] = c.blue
+            arr[i * 4 + 3] = c.alpha
+        }
+        arr
     }
 
     StardustMesh(
-        modifier = modifier,
         width = width,
         height = height,
-        points = flatPoints,
-        colors = flatColors,
-        dustIntensity = grainIntensity,
-        dustAnimationSpeed = grainSeed
+        pointsProvider = { flatPoints },
+        colorsProvider = { flatColors },
+        modifier = modifier,
+        dustIntensityProvider = { grainIntensity },
+        dustPhaseProvider = { grainSeed },
     )
 }
 
@@ -298,10 +402,6 @@ fun MeshGradient(
     )
 }
 
-private fun DrawScope.drawMeshGradient(shader: MeshGradientShader) {
-    shader.draw(this)
-}
-
 internal expect class MeshGradientShader(width: Int, height: Int) {
     fun update(
         points: Array<Offset>,
@@ -312,8 +412,17 @@ internal expect class MeshGradientShader(width: Int, height: Int) {
         dustPhase: Float = 0f
     )
 
+    fun update(
+        points: FloatArray,
+        colors: FloatArray,
+        uTangents: FloatArray? = null,
+        vTangents: FloatArray? = null,
+        dustIntensity: Float = 0f,
+        dustPhase: Float = 0f
+    )
+
     fun brush(size: androidx.compose.ui.geometry.Size): Brush
-    fun draw(drawScope: DrawScope)
+    fun draw(drawScope: DrawScope, downsampleFactor: Float = 1f)
     fun close()
 
     companion object {

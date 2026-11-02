@@ -9,13 +9,13 @@ plugins {
 }
 
 group = "io.github.quantum3600"
-version = "1.0.4"
+version = "1.0.5-alpha01"
 
 android {
     namespace = "io.github.quantum3600.stardust"
     compileSdk = 35
     defaultConfig {
-        minSdk = 21
+        minSdk = 26
     }
 }
 
@@ -68,7 +68,7 @@ mavenPublishing {
     pom {
         name.set("Stardust - Mesh Gradient for Multiplatform")
         description.set("A dynamic mesh gradient library for Compose Multiplatform.")
-        url.set("https://github.com/quantum3600/composemeshgradient")
+        url.set("https://github.com/quantum3600/stardust")
         licenses {
             license {
                 name.set("The Apache License, Version 2.0")
