@@ -9,16 +9,6 @@ The library uses OpenGL ES for high-performance rendering, ensuring your gradien
 
 ---
 
-## ✨ Demos
-
-Here are some examples of what you can create with ComposeMeshGradient:
-
-![github-1](https://github.com/user-attachments/assets/c0c78e75-77cb-49ba-ad34-b89712bd1b03)  ![Screen_Recording_20250811_110334_Compose Mesh Gradient](https://github.com/user-attachments/assets/f77f80af-1bdb-444d-817a-6bfa79ac2334)  ![Screen_Recording_20250811_223615_MeshGraadTest (1)](https://github.com/user-attachments/assets/f24e2a0d-a4a6-44c7-8038-04cdbf1f72cd)
-
-
-
----
-
 ## 💡 Showcase & Inspiration
 
 ComposeMeshGradient provides the core tools to build a wide variety of dynamic and interactive effects. The `MeshGradientState` allows you to update colors and points on every frame, making it possible to connect the gradient to any external state or user input. Here are some ideas to inspire you:
