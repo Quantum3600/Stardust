@@ -10,8 +10,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import io.github.quantum3600.stardust.data.BezierPoint
-import kotlin.jvm.JvmName
 
 /**
  * High-performance bicubic mesh gradient driven by primitive FloatArray providers.
@@ -66,40 +64,19 @@ fun StardustMesh(
  */
 @Composable
 fun StardustMesh(
-    modifier: Modifier = Modifier,
     width: Int,
     height: Int,
     points: Array<Offset>,
     colors: Array<Color>,
-    uTangents: FloatArray? = null,
-    vTangents: FloatArray? = null,
+    modifier: Modifier = Modifier,
     @Suppress("UNUSED_PARAMETER") globalSubdivisions: Int = 32,
-    dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
+    dustIntensity: Float = 0f
 ) {
     require(width > 1 && height > 1) { "Mesh dimensions must be greater than 1" }
     require(points.size == width * height) { "points must contain width * height items" }
     require(colors.size == width * height) { "colors must contain width * height items" }
     require(width * height <= StardustMeshShader.maxControlPoints) {
         "Mesh gradients support at most ${StardustMeshShader.maxControlPoints} control points"
-    }
-
-    val effectiveDustIntensity = if (grainIntensity != 0f) grainIntensity else dustIntensity
-    val effectiveDustSpeed = if (grainSeed != 0f) grainSeed else dustAnimationSpeed
-
-    val dustPhase = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-    androidx.compose.runtime.LaunchedEffect(effectiveDustSpeed) {
-        if (effectiveDustSpeed > 0f) {
-            var lastTime = androidx.compose.runtime.withFrameNanos { it }
-            while (true) {
-                val frameTime = androidx.compose.runtime.withFrameNanos { it }
-                val dt = (frameTime - lastTime) / 1_000_000_000f
-                lastTime = frameTime
-                dustPhase.floatValue += dt * effectiveDustSpeed
-            }
-        }
     }
 
     val flatPoints = remember(points) {
@@ -127,10 +104,8 @@ fun StardustMesh(
         pointsProvider = { flatPoints },
         colorsProvider = { flatColors },
         modifier = modifier,
-        uTangentsProvider = if (uTangents != null) { { uTangents } } else null,
-        vTangentsProvider = if (vTangents != null) { { vTangents } } else null,
-        dustIntensityProvider = { effectiveDustIntensity },
-        dustPhaseProvider = { if (effectiveDustSpeed > 0f) dustPhase.floatValue else effectiveDustSpeed },
+        dustIntensityProvider = { dustIntensity },
+        dustPhaseProvider = { 0f }
     )
 }
 
@@ -139,222 +114,21 @@ fun StardustMesh(
  */
 @Composable
 fun StardustMesh(
-    modifier: Modifier = Modifier,
     width: Int,
     height: Int,
+    modifier: Modifier = Modifier,
     @Suppress("UNUSED_PARAMETER") globalSubdivisions: Int = 32,
     dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
     state: StardustMeshState,
 ) {
-    val effectiveDustIntensity = if (grainIntensity != 0f) grainIntensity else dustIntensity
-    val effectiveDustSpeed = if (grainSeed != 0f) grainSeed else dustAnimationSpeed
-
-    val dustPhase = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-    androidx.compose.runtime.LaunchedEffect(effectiveDustSpeed) {
-        if (effectiveDustSpeed > 0f) {
-            var lastTime = androidx.compose.runtime.withFrameNanos { it }
-            while (true) {
-                val frameTime = androidx.compose.runtime.withFrameNanos { it }
-                val dt = (frameTime - lastTime) / 1_000_000_000f
-                lastTime = frameTime
-                dustPhase.floatValue += dt * effectiveDustSpeed
-            }
-        }
-    }
-
     StardustMesh(
         width = width,
         height = height,
         pointsProvider = { state.pointsArray() },
         colorsProvider = { state.colorsArray() },
         modifier = modifier,
-        dustIntensityProvider = { effectiveDustIntensity },
-        dustPhaseProvider = { if (effectiveDustSpeed > 0f) dustPhase.floatValue else effectiveDustSpeed },
-    )
-}
-
-/**
- * Draws a bicubic mesh gradient driven by a [StardustBezierMeshState].
- */
-@Composable
-fun StardustMesh(
-    modifier: Modifier = Modifier,
-    state: StardustBezierMeshState,
-    dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
-) {
-    val effectiveDustIntensity = if (grainIntensity != 0f) grainIntensity else dustIntensity
-    val effectiveDustSpeed = if (grainSeed != 0f) grainSeed else dustAnimationSpeed
-
-    val dustPhase = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
-    androidx.compose.runtime.LaunchedEffect(effectiveDustSpeed) {
-        if (effectiveDustSpeed > 0f) {
-            var lastTime = androidx.compose.runtime.withFrameNanos { it }
-            while (true) {
-                val frameTime = androidx.compose.runtime.withFrameNanos { it }
-                val dt = (frameTime - lastTime) / 1_000_000_000f
-                lastTime = frameTime
-                dustPhase.floatValue += dt * effectiveDustSpeed
-            }
-        }
-    }
-
-    StardustMesh(
-        width = state.width,
-        height = state.height,
-        pointsProvider = { state.pointsArray() },
-        colorsProvider = { state.colorsArray() },
-        modifier = modifier,
-        uTangentsProvider = { state.uTangentsArray() },
-        vTangentsProvider = { state.vTangentsArray() },
-        dustIntensityProvider = { effectiveDustIntensity },
-        dustPhaseProvider = { if (effectiveDustSpeed > 0f) dustPhase.floatValue else effectiveDustSpeed },
-    )
-}
-
-/**
- * Draws a mesh gradient using 2D grid lists of [BezierPoint]s and colors.
- */
-@Composable
-@JvmName("StardustMeshBezier")
-fun StardustMesh(
-    bezierPoints: List<List<BezierPoint>>,
-    colors: List<List<Color>>,
-    modifier: Modifier = Modifier,
-    dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
-) {
-    val height = bezierPoints.size
-    val width = bezierPoints.firstOrNull()?.size ?: 0
-    require(width > 1 && height > 1) { "Mesh dimensions must be greater than 1" }
-    require(colors.size == height && colors.all { it.size == width }) {
-        "colors grid dimensions must match bezierPoints grid dimensions ($width x $height)"
-    }
-    require(width * height <= StardustMeshShader.maxControlPoints) {
-        "Mesh gradients support at most ${StardustMeshShader.maxControlPoints} control points"
-    }
-
-    val effectiveDustIntensity = if (grainIntensity != 0f) grainIntensity else dustIntensity
-    val effectiveDustPhase = if (grainSeed != 0f) grainSeed else dustAnimationSpeed
-
-    val flatPoints = remember(bezierPoints) {
-        val points = bezierPoints.flatten()
-        val arr = FloatArray(points.size * 2)
-        points.forEachIndexed { i, bp ->
-            arr[i * 2] = bp.position.x
-            arr[i * 2 + 1] = bp.position.y
-        }
-        arr
-    }
-    val flatColors = remember(colors) {
-        val cols = colors.flatten()
-        val arr = FloatArray(cols.size * 4)
-        cols.forEachIndexed { i, c ->
-            arr[i * 4] = c.red
-            arr[i * 4 + 1] = c.green
-            arr[i * 4 + 2] = c.blue
-            arr[i * 4 + 3] = c.alpha
-        }
-        arr
-    }
-    val uTangents = remember(bezierPoints) {
-        val arr = FloatArray(StardustMeshShader.maxControlPoints * 4)
-        bezierPoints.flatten().forEachIndexed { i, bp ->
-            arr[i * 4 + 0] = bp.uTangentLeading.x
-            arr[i * 4 + 1] = bp.uTangentLeading.y
-            arr[i * 4 + 2] = bp.uTangentTrailing.x
-            arr[i * 4 + 3] = bp.uTangentTrailing.y
-        }
-        arr
-    }
-    val vTangents = remember(bezierPoints) {
-        val arr = FloatArray(StardustMeshShader.maxControlPoints * 4)
-        bezierPoints.flatten().forEachIndexed { i, bp ->
-            arr[i * 4 + 0] = bp.vTangentTop.x
-            arr[i * 4 + 1] = bp.vTangentTop.y
-            arr[i * 4 + 2] = bp.vTangentBottom.x
-            arr[i * 4 + 3] = bp.vTangentBottom.y
-        }
-        arr
-    }
-
-    StardustMesh(
-        width = width,
-        height = height,
-        pointsProvider = { flatPoints },
-        colorsProvider = { flatColors },
-        modifier = modifier,
-        uTangentsProvider = { uTangents },
-        vTangentsProvider = { vTangents },
-        dustIntensityProvider = { effectiveDustIntensity },
-        dustPhaseProvider = { effectiveDustPhase },
-    )
-}
-
-/**
- * Draws a mesh gradient using 2D grid lists of [Offset] positions and colors.
- * Automatically generates cardinal Bézier tangents for full backward compatibility.
- */
-@Composable
-@JvmName("StardustMeshPositions")
-fun StardustMesh(
-    points: List<List<Offset>>,
-    colors: List<List<Color>>,
-    modifier: Modifier = Modifier,
-    dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
-) {
-    val height = points.size
-    val width = points.firstOrNull()?.size ?: 0
-    require(width > 1 && height > 1) { "Mesh dimensions must be greater than 1" }
-    require(colors.size == height && colors.all { it.size == width }) {
-        "colors grid dimensions must match points grid dimensions ($width x $height)"
-    }
-    require(width * height <= StardustMeshShader.maxControlPoints) {
-        "Mesh gradients support at most ${StardustMeshShader.maxControlPoints} control points"
-    }
-
-    val effectiveDustIntensity = if (grainIntensity != 0f) grainIntensity else dustIntensity
-    val effectiveDustPhase = if (grainSeed != 0f) grainSeed else dustAnimationSpeed
-
-    val flatPoints = remember(points) {
-        val pts = points.flatten()
-        val arr = FloatArray(pts.size * 2)
-        pts.forEachIndexed { i, p ->
-            arr[i * 2] = p.x
-            arr[i * 2 + 1] = p.y
-        }
-        arr
-    }
-    val flatColors = remember(colors) {
-        val cols = colors.flatten()
-        val arr = FloatArray(cols.size * 4)
-        cols.forEachIndexed { i, c ->
-            arr[i * 4] = c.red
-            arr[i * 4 + 1] = c.green
-            arr[i * 4 + 2] = c.blue
-            arr[i * 4 + 3] = c.alpha
-        }
-        arr
-    }
-
-    StardustMesh(
-        width = width,
-        height = height,
-        pointsProvider = { flatPoints },
-        colorsProvider = { flatColors },
-        modifier = modifier,
-        dustIntensityProvider = { effectiveDustIntensity },
-        dustPhaseProvider = { effectiveDustPhase },
+        dustIntensityProvider = { dustIntensity },
+        dustPhaseProvider = { 0f }
     )
 }
 
@@ -362,7 +136,10 @@ fun StardustMesh(
 // Alias Functions: MeshGradient -> StardustMesh
 // ----------------------------------------------------------------------------------
 
-/** Alias for [StardustMesh]. */
+/**
+ * Primary composable function for rendering mesh gradients in Stardust.
+ * Exact alias matching original MeshGradient API.
+ */
 @Composable
 fun MeshGradient(
     width: Int,
@@ -370,115 +147,36 @@ fun MeshGradient(
     points: Array<Offset>,
     colors: Array<Color>,
     modifier: Modifier = Modifier,
-    globalSubdivisions: Int = 32,
-    dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
+    globalSubdivisions: Int = 32
 ) {
     StardustMesh(
-        modifier = modifier,
         width = width,
         height = height,
         points = points,
         colors = colors,
-        globalSubdivisions = globalSubdivisions,
-        dustIntensity = dustIntensity,
-        grainIntensity = grainIntensity,
-        dustAnimationSpeed = dustAnimationSpeed,
-        grainSeed = grainSeed,
+        modifier = modifier,
+        globalSubdivisions = globalSubdivisions
     )
 }
 
-/** Alias for [StardustMesh]. */
+/**
+ * Primary composable function for rendering mesh gradients driven by a state.
+ * Exact alias matching original MeshGradient API.
+ */
 @Composable
 fun MeshGradient(
     width: Int,
     height: Int,
     modifier: Modifier = Modifier,
     globalSubdivisions: Int = 32,
-    dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
-    state: StardustMeshState,
+    state: MeshGradientState
 ) {
     StardustMesh(
-        modifier = modifier,
         width = width,
         height = height,
+        modifier = modifier,
         globalSubdivisions = globalSubdivisions,
-        dustIntensity = dustIntensity,
-        grainIntensity = grainIntensity,
-        dustAnimationSpeed = dustAnimationSpeed,
-        grainSeed = grainSeed,
-        state = state,
-    )
-}
-
-/** Alias for [StardustMesh]. */
-@Composable
-fun MeshGradient(
-    modifier: Modifier = Modifier,
-    dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
-    state: StardustBezierMeshState,
-) {
-    StardustMesh(
-        modifier = modifier,
-        state = state,
-        dustIntensity = dustIntensity,
-        grainIntensity = grainIntensity,
-        dustAnimationSpeed = dustAnimationSpeed,
-        grainSeed = grainSeed,
-    )
-}
-
-/** Alias for [StardustMesh]. */
-@Composable
-@JvmName("MeshGradientBezier")
-fun MeshGradient(
-    bezierPoints: List<List<BezierPoint>>,
-    colors: List<List<Color>>,
-    modifier: Modifier = Modifier,
-    dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
-) {
-    StardustMesh(
-        bezierPoints = bezierPoints,
-        colors = colors,
-        modifier = modifier,
-        dustIntensity = dustIntensity,
-        grainIntensity = grainIntensity,
-        dustAnimationSpeed = dustAnimationSpeed,
-        grainSeed = grainSeed,
-    )
-}
-
-/** Alias for [StardustMesh]. */
-@Composable
-@JvmName("MeshGradientPositions")
-fun MeshGradient(
-    points: List<List<Offset>>,
-    colors: List<List<Color>>,
-    modifier: Modifier = Modifier,
-    dustIntensity: Float = 0f,
-    grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 0f,
-    grainSeed: Float = dustAnimationSpeed,
-) {
-    StardustMesh(
-        points = points,
-        colors = colors,
-        modifier = modifier,
-        dustIntensity = dustIntensity,
-        grainIntensity = grainIntensity,
-        dustAnimationSpeed = dustAnimationSpeed,
-        grainSeed = grainSeed,
+        state = state
     )
 }
 

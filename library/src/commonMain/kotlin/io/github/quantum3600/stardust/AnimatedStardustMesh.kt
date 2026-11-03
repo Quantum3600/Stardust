@@ -20,20 +20,17 @@ import io.github.quantum3600.stardust.utils.normalizeColorGrid
  */
 @Stable
 class AnimatedStardustMeshState(
-    val width: Int = 3,
-    val height: Int = 3,
+    val width: Int = 4,
+    val height: Int = 4,
     initialColors: List<Color> = defaultColors,
-    initialSpeed: Float = 0.15f,
-    initialWobbleAmount: Float = 0.12f
+    initialSpeed: Float = 0.3f,
+    initialWobbleAmount: Float = 0.2f
 ) {
     var speed by mutableFloatStateOf(initialSpeed)
     var wobbleAmount by mutableFloatStateOf(initialWobbleAmount)
     var isPaused by mutableStateOf(false)
 
     var time: Float = 0f
-        private set
-
-    var dustPhase: Float = 0f
         private set
 
     // Base grid positions (normalized 0..1)
@@ -46,7 +43,6 @@ class AnimatedStardustMeshState(
         (i / width) / h.toFloat()
     }
 
-    // Running positions for smooth interpolation (zero allocations during animation)
     private val currentPointsX = basePointsX.copyOf()
     private val currentPointsY = basePointsY.copyOf()
     private val targetPointsX = basePointsX.copyOf()
@@ -87,13 +83,13 @@ class AnimatedStardustMeshState(
     /**
      * Ticks the animation frame synchronized to VSYNC with zero allocations.
      */
-    fun updateFrame(deltaTime: Float, dustAnimationSpeed: Float = 0f) {
+    fun updateFrame(deltaTime: Float) {
         if (isPaused) return
 
         if (speed > 0f) {
             time += deltaTime * speed
             val numPoints = width * height
-            val currentWobble = wobbleAmount
+            val noiseIntensity = wobbleAmount
 
             for (i in 0 until numPoints) {
                 val col = i % width
@@ -106,14 +102,14 @@ class AnimatedStardustMeshState(
                 } else {
                     val bx = basePointsX[i]
                     val by = basePointsY[i]
-                    val noiseX = SimplexNoise.noise(bx * 1.5f, time + i) * currentWobble
-                    val noiseY = SimplexNoise.noise(by * 1.5f, time + i + 100f) * currentWobble
+                    val noiseX = SimplexNoise.noise(bx * 1.5f, time + i) * noiseIntensity
+                    val noiseY = SimplexNoise.noise(by * 1.5f, time + i + 100f) * noiseIntensity
                     targetPointsX[i] = bx + noiseX
                     targetPointsY[i] = by + noiseY
                 }
             }
 
-            val factor = (4f * deltaTime).coerceIn(0f, 1f)
+            val factor = (8f * deltaTime).coerceIn(0f, 1f)
             for (i in 0 until numPoints) {
                 currentPointsX[i] = currentPointsX[i] + (targetPointsX[i] - currentPointsX[i]) * factor
                 currentPointsY[i] = currentPointsY[i] + (targetPointsY[i] - currentPointsY[i]) * factor
@@ -121,10 +117,6 @@ class AnimatedStardustMeshState(
                 framePoints[i * 2 + 1] = currentPointsY[i]
             }
             pointsVersion++
-        }
-
-        if (dustAnimationSpeed > 0f) {
-            dustPhase += deltaTime * dustAnimationSpeed
         }
     }
 
@@ -156,11 +148,11 @@ typealias AnimatedMeshGradientState = AnimatedStardustMeshState
  */
 @Composable
 fun rememberAnimatedStardustMeshState(
-    width: Int = 3,
-    height: Int = 3,
+    width: Int = 4,
+    height: Int = 4,
     colors: List<Color> = AnimatedStardustMeshState.defaultColors,
-    speed: Float = 0.15f,
-    wobbleAmount: Float = 0.12f
+    speed: Float = 0.3f,
+    wobbleAmount: Float = 0.2f
 ): AnimatedStardustMeshState {
     return remember(width, height) {
         AnimatedStardustMeshState(
@@ -176,11 +168,11 @@ fun rememberAnimatedStardustMeshState(
 /** Backward-compatible helper alias for [rememberAnimatedStardustMeshState]. */
 @Composable
 fun rememberAnimatedMeshGradientState(
-    width: Int = 3,
-    height: Int = 3,
+    width: Int = 4,
+    height: Int = 4,
     colors: List<Color> = AnimatedStardustMeshState.defaultColors,
-    speed: Float = 0.15f,
-    wobbleAmount: Float = 0.12f
+    speed: Float = 0.3f,
+    wobbleAmount: Float = 0.2f
 ): AnimatedStardustMeshState = rememberAnimatedStardustMeshState(width, height, colors, speed, wobbleAmount)
 
 /**
@@ -189,26 +181,24 @@ fun rememberAnimatedMeshGradientState(
  *
  * @param colors List of colors for the mesh. Can be 4 corner colors or a flat grid of [width] * [height] colors.
  * @param modifier Composable modifier.
- * @param width Horizontal grid dimension (default 3).
- * @param height Vertical grid dimension (default 3).
- * @param speed Animation speed for mesh point movement (default 0.15f). Set to 0f to freeze motion.
- * @param wobbleAmount Intensity of interior point movement/distortion (default 0.12f).
+ * @param width Horizontal grid dimension (default 4).
+ * @param height Vertical grid dimension (default 4).
+ * @param speed Animation speed for mesh point movement (default 0.3f). Set to 0f to freeze motion.
+ * @param wobbleAmount Intensity of interior point movement/distortion (default 0.2f).
  * @param dustIntensity Procedural film grain/dust overlay intensity (0.0f to 1.0f).
  * @param grainIntensity Alias for [dustIntensity].
- * @param dustAnimationSpeed Speed of dust particle animation (default 10f).
  * @param state Optional state holder to control animation programmatically.
  */
 @Composable
 fun AnimatedStardustMesh(
     colors: List<Color>,
     modifier: Modifier = Modifier,
-    width: Int = 3,
-    height: Int = 3,
-    speed: Float = 0.15f,
-    wobbleAmount: Float = 0.12f,
+    width: Int = 4,
+    height: Int = 4,
+    speed: Float = 0.3f,
+    wobbleAmount: Float = 0.2f,
     dustIntensity: Float = 0f,
     grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 10f,
     state: AnimatedStardustMeshState = rememberAnimatedStardustMeshState(
         width = width,
         height = height,
@@ -225,13 +215,13 @@ fun AnimatedStardustMesh(
         state.setColors(colors)
     }
 
-    LaunchedEffect(state, dustAnimationSpeed) {
+    LaunchedEffect(state) {
         var lastTime = 0L
         while (true) {
             withFrameNanos { frameTime ->
                 if (lastTime != 0L) {
                     val dt = (frameTime - lastTime) / 1_000_000_000f
-                    state.updateFrame(dt, dustAnimationSpeed)
+                    state.updateFrame(dt)
                 }
                 lastTime = frameTime
             }
@@ -245,7 +235,7 @@ fun AnimatedStardustMesh(
         colorsProvider = { state.colorsArray() },
         modifier = modifier,
         dustIntensityProvider = { effectiveDustIntensity },
-        dustPhaseProvider = { state.dustPhase }
+        dustPhaseProvider = { 0f }
     )
 }
 
@@ -256,11 +246,10 @@ fun AnimatedStardustMesh(
 fun AnimatedStardustMesh(
     colorsGrid: List<List<Color>>,
     modifier: Modifier = Modifier,
-    speed: Float = 0.15f,
-    wobbleAmount: Float = 0.12f,
+    speed: Float = 0.3f,
+    wobbleAmount: Float = 0.2f,
     dustIntensity: Float = 0f,
     grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 10f,
 ) {
     val height = colorsGrid.size
     val width = colorsGrid.firstOrNull()?.size ?: 0
@@ -274,8 +263,7 @@ fun AnimatedStardustMesh(
         speed = speed,
         wobbleAmount = wobbleAmount,
         dustIntensity = dustIntensity,
-        grainIntensity = grainIntensity,
-        dustAnimationSpeed = dustAnimationSpeed
+        grainIntensity = grainIntensity
     )
 }
 
@@ -284,13 +272,12 @@ fun AnimatedStardustMesh(
 fun AnimatedMeshGradient(
     colors: List<Color>,
     modifier: Modifier = Modifier,
-    width: Int = 3,
-    height: Int = 3,
-    speed: Float = 0.15f,
-    wobbleAmount: Float = 0.12f,
+    width: Int = 4,
+    height: Int = 4,
+    speed: Float = 0.3f,
+    wobbleAmount: Float = 0.2f,
     dustIntensity: Float = 0f,
     grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 10f,
     state: AnimatedStardustMeshState = rememberAnimatedStardustMeshState(
         width = width,
         height = height,
@@ -308,7 +295,6 @@ fun AnimatedMeshGradient(
         wobbleAmount = wobbleAmount,
         dustIntensity = dustIntensity,
         grainIntensity = grainIntensity,
-        dustAnimationSpeed = dustAnimationSpeed,
         state = state
     )
 }
@@ -318,11 +304,10 @@ fun AnimatedMeshGradient(
 fun AnimatedMeshGradient(
     colorsGrid: List<List<Color>>,
     modifier: Modifier = Modifier,
-    speed: Float = 0.15f,
-    wobbleAmount: Float = 0.12f,
+    speed: Float = 0.3f,
+    wobbleAmount: Float = 0.2f,
     dustIntensity: Float = 0f,
     grainIntensity: Float = dustIntensity,
-    dustAnimationSpeed: Float = 10f,
 ) {
     AnimatedStardustMesh(
         colorsGrid = colorsGrid,
@@ -330,7 +315,6 @@ fun AnimatedMeshGradient(
         speed = speed,
         wobbleAmount = wobbleAmount,
         dustIntensity = dustIntensity,
-        grainIntensity = grainIntensity,
-        dustAnimationSpeed = dustAnimationSpeed
+        grainIntensity = grainIntensity
     )
 }

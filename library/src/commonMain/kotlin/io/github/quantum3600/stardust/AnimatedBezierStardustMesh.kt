@@ -24,8 +24,8 @@ class AnimatedBezierStardustMeshState(
     val height: Int = 3,
     initialColors: List<Color> = defaultColors,
     initialSpeed: Float = 1.0f,
-    initialRandomness: Float = 0.18f,
-    initialTangentWobble: Float = 0.15f
+    initialRandomness: Float = 0.28f,
+    initialTangentWobble: Float = 0.30f
 ) {
     var speed by mutableFloatStateOf(initialSpeed)
     var randomness by mutableFloatStateOf(initialRandomness)
@@ -35,7 +35,7 @@ class AnimatedBezierStardustMeshState(
     var time: Float = 0f
         private set
 
-    var dustPhase: Float = 0f
+    var dustPhase by mutableFloatStateOf(0f)
         private set
 
     internal val framePoints = FloatArray(width * height * 2)
@@ -66,11 +66,12 @@ class AnimatedBezierStardustMeshState(
     fun updateFrame(deltaTime: Float, dustAnimationSpeed: Float = 0f) {
         if (isPaused) return
 
-        if (speed > 0f) {
-            time += deltaTime * speed
+        time += deltaTime
 
+        if (speed > 0f) {
             val r = randomness
             val tw = tangentWobble
+            val animSpeed = speed
 
             for (row in 0 until height) {
                 for (col in 0 until width) {
@@ -80,23 +81,23 @@ class AnimatedBezierStardustMeshState(
 
                     val isBorder = row == 0 || row == height - 1 || col == 0 || col == width - 1
 
-                    val activeX = if (isBorder) posX else posX + SimplexNoise.noise(posX * 2f + time * 0.5f, idx.toFloat()) * r
-                    val activeY = if (isBorder) posY else posY + SimplexNoise.noise(posY * 2f + time * 0.5f, idx + 50f) * r
+                    val activeX = if (isBorder) posX else posX + SimplexNoise.noise(posX * 2f + time * 0.5f * animSpeed, idx.toFloat()) * r
+                    val activeY = if (isBorder) posY else posY + SimplexNoise.noise(posY * 2f + time * 0.5f * animSpeed, idx + 50f) * r
 
                     framePoints[idx * 2] = activeX
                     framePoints[idx * 2 + 1] = activeY
 
-                    val tldX = -0.18f + SimplexNoise.noise(time * 0.9f, idx + 10f) * tw
-                    val tldY = SimplexNoise.noise(time * 0.9f, idx + 20f) * tw
+                    val tldX = -0.22f + SimplexNoise.noise(time * 0.9f * animSpeed, idx + 10f) * tw
+                    val tldY = SimplexNoise.noise(time * 0.9f * animSpeed, idx + 20f) * tw
 
-                    val ttrX = 0.18f + SimplexNoise.noise(time * 0.9f, idx + 30f) * tw
-                    val ttrY = SimplexNoise.noise(time * 0.9f, idx + 40f) * tw
+                    val ttrX = 0.22f + SimplexNoise.noise(time * 0.9f * animSpeed, idx + 30f) * tw
+                    val ttrY = SimplexNoise.noise(time * 0.9f * animSpeed, idx + 40f) * tw
 
-                    val ttopX = SimplexNoise.noise(time * 0.9f, idx + 60f) * tw
-                    val ttopY = -0.18f + SimplexNoise.noise(time * 0.9f, idx + 70f) * tw
+                    val ttopX = SimplexNoise.noise(time * 0.9f * animSpeed, idx + 60f) * tw
+                    val ttopY = -0.22f + SimplexNoise.noise(time * 0.9f * animSpeed, idx + 70f) * tw
 
-                    val tbotX = SimplexNoise.noise(time * 0.9f, idx + 80f) * tw
-                    val tbotY = 0.18f + SimplexNoise.noise(time * 0.9f, idx + 90f) * tw
+                    val tbotX = SimplexNoise.noise(time * 0.9f * animSpeed, idx + 80f) * tw
+                    val tbotY = 0.22f + SimplexNoise.noise(time * 0.9f * animSpeed, idx + 90f) * tw
 
                     val uBase = idx * 4
                     frameUTangents[uBase + 0] = tldX
@@ -163,8 +164,8 @@ fun rememberAnimatedBezierStardustMeshState(
     height: Int = 3,
     colors: List<Color> = AnimatedBezierStardustMeshState.defaultColors,
     speed: Float = 1.0f,
-    randomness: Float = 0.18f,
-    tangentWobble: Float = 0.15f
+    randomness: Float = 0.28f,
+    tangentWobble: Float = 0.30f
 ): AnimatedBezierStardustMeshState {
     return remember(width, height) {
         AnimatedBezierStardustMeshState(
@@ -185,8 +186,8 @@ fun rememberAnimatedBezierMeshGradientState(
     height: Int = 3,
     colors: List<Color> = AnimatedBezierStardustMeshState.defaultColors,
     speed: Float = 1.0f,
-    randomness: Float = 0.18f,
-    tangentWobble: Float = 0.15f
+    randomness: Float = 0.28f,
+    tangentWobble: Float = 0.30f
 ): AnimatedBezierStardustMeshState = rememberAnimatedBezierStardustMeshState(
     width, height, colors, speed, randomness, tangentWobble
 )
@@ -200,8 +201,8 @@ fun rememberAnimatedBezierMeshGradientState(
  * @param width Horizontal grid dimension (default 3).
  * @param height Vertical grid dimension (default 3).
  * @param speed Animation speed for mesh motion (default 1.0f).
- * @param randomness Intensity of point movement/distortion (default 0.18f).
- * @param tangentWobble Intensity of Bézier tangent handle motion (default 0.15f).
+ * @param randomness Intensity of point movement/distortion (default 0.28f).
+ * @param tangentWobble Intensity of Bézier tangent handle motion (default 0.30f).
  * @param dustIntensity Procedural film grain/dust overlay intensity (0.0f to 1.0f).
  * @param grainIntensity Alias for [dustIntensity].
  * @param dustAnimationSpeed Speed of dust particle animation (default 60f).
@@ -214,8 +215,8 @@ fun AnimatedBezierStardustMesh(
     width: Int = 3,
     height: Int = 3,
     speed: Float = 1.0f,
-    randomness: Float = 0.18f,
-    tangentWobble: Float = 0.15f,
+    randomness: Float = 0.28f,
+    tangentWobble: Float = 0.30f,
     dustIntensity: Float = 0f,
     grainIntensity: Float = dustIntensity,
     dustAnimationSpeed: Float = 60f,
@@ -271,8 +272,8 @@ fun AnimatedBezierStardustMesh(
     colorsGrid: List<List<Color>>,
     modifier: Modifier = Modifier,
     speed: Float = 1.0f,
-    randomness: Float = 0.18f,
-    tangentWobble: Float = 0.15f,
+    randomness: Float = 0.28f,
+    tangentWobble: Float = 0.30f,
     dustIntensity: Float = 0f,
     grainIntensity: Float = dustIntensity,
     dustAnimationSpeed: Float = 60f,
@@ -303,8 +304,8 @@ fun AnimatedBezierMeshGradient(
     width: Int = 3,
     height: Int = 3,
     speed: Float = 1.0f,
-    randomness: Float = 0.18f,
-    tangentWobble: Float = 0.15f,
+    randomness: Float = 0.28f,
+    tangentWobble: Float = 0.30f,
     dustIntensity: Float = 0f,
     grainIntensity: Float = dustIntensity,
     dustAnimationSpeed: Float = 60f,
@@ -338,8 +339,8 @@ fun AnimatedBezierMeshGradient(
     colorsGrid: List<List<Color>>,
     modifier: Modifier = Modifier,
     speed: Float = 1.0f,
-    randomness: Float = 0.18f,
-    tangentWobble: Float = 0.15f,
+    randomness: Float = 0.28f,
+    tangentWobble: Float = 0.30f,
     dustIntensity: Float = 0f,
     grainIntensity: Float = dustIntensity,
     dustAnimationSpeed: Float = 60f,

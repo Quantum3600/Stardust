@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
@@ -14,7 +15,12 @@ kotlin {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
         }
     }
-    jvm("desktop")
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    jvm("desktop") {
+        mainRun {
+            mainClass.set("io.github.quantum3600.stardust.DesktopMainKt")
+        }
+    }
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         outputModuleName.set("sample")

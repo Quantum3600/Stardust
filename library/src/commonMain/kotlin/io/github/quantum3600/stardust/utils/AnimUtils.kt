@@ -12,7 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import io.github.quantum3600.stardust.rememberStardustMeshState
+import io.github.quantum3600.stardust.rememberMeshGradientState
 import kotlinx.coroutines.launch
 
 @Composable
@@ -33,7 +33,6 @@ fun InfiniteTransition.animateOffset(
     )
     return derivedStateOf { Offset(xAnim.value, yAnim.value) }
 }
-
 
 /**
  * A state holder that manages the animated state of mesh data.
@@ -67,7 +66,7 @@ fun rememberSimplexAnimatedMesh(
     val initialPoints = remember(width, height) {
         generateMeshPoints(width, height, randomness = 0f)
     }
-    val meshState = rememberStardustMeshState(points = initialPoints, colors = colors.toTypedArray())
+    val meshState = rememberMeshGradientState(points = initialPoints, colors = colors.toTypedArray())
 
     LaunchedEffect(Unit) {
         var time = 0f
@@ -77,15 +76,15 @@ fun rememberSimplexAnimatedMesh(
         val targetPoints = initialPoints.toMutableList()
 
         while (true) {
-            val updatedPoints = withFrameNanos { frameTime ->
+            withFrameNanos { frameTime ->
                 if (lastFrameTime == 0L) lastFrameTime = frameTime
                 val deltaTime = (frameTime - lastFrameTime) / 1_000_000_000.0f
                 lastFrameTime = frameTime
-                time += deltaTime
+                time += deltaTime * animationSpeed
 
                 for (i in targetPoints.indices) {
                     val col = i % width
-                    val row = i / width
+                    val row = i / height
                     val isBorder = row == 0 || row == height - 1 || col == 0 || col == width - 1
 
                     if (isBorder) {
@@ -94,13 +93,13 @@ fun rememberSimplexAnimatedMesh(
                         val bp = basePoints[i]
                         val noiseX = SimplexNoise.noise(
                             bp.x * 1.5f,
-                            time * animationSpeed + i
+                            time + i
                         ) * noiseIntensity
                         val noiseY = SimplexNoise.noise(
                             bp.y * 1.5f,
-                            time * animationSpeed + i + 100f
+                            time + i + 100f
                         ) * noiseIntensity
-                        targetPoints[i] = bp.copy(x = bp.x + noiseX, y = bp.y + noiseY)
+                        targetPoints[i] = Offset(bp.x + noiseX, bp.y + noiseY)
                     }
                 }
 
@@ -113,9 +112,10 @@ fun rememberSimplexAnimatedMesh(
                     )
                 }
 
-                currentPoints.toList()
+                launch {
+                    meshState.snapAllPoints(currentPoints.toList())
+                }
             }
-            meshState.snapAllPoints(updatedPoints)
         }
     }
 
