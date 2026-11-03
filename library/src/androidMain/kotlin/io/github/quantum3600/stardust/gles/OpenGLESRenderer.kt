@@ -99,8 +99,8 @@ internal class OpenGLESRenderer {
 
     private fun compileShadersAndProgram(): Boolean {
         // Try ES 3.0 shaders first
-        var vShader = loadShader(GLES20.GL_VERTEX_SHADER, MeshGradientGLSLShaderSource.VertexShaderES30)
-        var fShader = loadShader(GLES20.GL_FRAGMENT_SHADER, MeshGradientGLSLShaderSource.FragmentShaderES30)
+        var vShader = loadShader(GLES20.GL_VERTEX_SHADER, StardustMeshGLSLShaderSource.VertexShaderES30)
+        var fShader = loadShader(GLES20.GL_FRAGMENT_SHADER, StardustMeshGLSLShaderSource.FragmentShaderES30)
         var prog = 0
 
         if (vShader != 0 && fShader != 0) {
@@ -112,8 +112,8 @@ internal class OpenGLESRenderer {
             if (vShader != 0) GLES20.glDeleteShader(vShader)
             if (fShader != 0) GLES20.glDeleteShader(fShader)
 
-            vShader = loadShader(GLES20.GL_VERTEX_SHADER, MeshGradientGLSLShaderSource.VertexShaderES10)
-            fShader = loadShader(GLES20.GL_FRAGMENT_SHADER, MeshGradientGLSLShaderSource.FragmentShaderES10)
+            vShader = loadShader(GLES20.GL_VERTEX_SHADER, StardustMeshGLSLShaderSource.VertexShaderES10)
+            fShader = loadShader(GLES20.GL_FRAGMENT_SHADER, StardustMeshGLSLShaderSource.FragmentShaderES10)
             if (vShader != 0 && fShader != 0) {
                 prog = createProgram(vShader, fShader)
             }

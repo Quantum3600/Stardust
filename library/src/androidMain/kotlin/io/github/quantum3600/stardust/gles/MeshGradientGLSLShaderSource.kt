@@ -1,6 +1,6 @@
 package io.github.quantum3600.stardust.gles
 
-internal object MeshGradientGLSLShaderSource {
+internal object StardustMeshGLSLShaderSource {
 
     const val VertexShaderES30 = """#version 300 es
 in vec2 aPosition;

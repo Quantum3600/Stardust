@@ -33,13 +33,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,15 +47,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.quantum3600.stardust.utils.SimplexNoise
 import io.github.quantum3600.stardust.utils.lerp
-import kotlin.random.Random
 
 /**
  * Color Presets for gradient buttons & background demo.
@@ -106,47 +101,35 @@ fun PlayIcon(modifier: Modifier = Modifier, tint: Color = Color.White) {
 }
 
 @Composable
-fun PaletteIcon(modifier: Modifier = Modifier, tint: Color = Color.White) {
-    Canvas(modifier = modifier) {
-        val r = size.minDimension / 2f
-        drawCircle(color = tint, radius = r, style = Stroke(width = 3.dp.toPx()))
-        drawCircle(color = tint, radius = r * 0.25f, center = Offset(center.x - r * 0.4f, center.y - r * 0.3f))
-        drawCircle(color = tint, radius = r * 0.25f, center = Offset(center.x + r * 0.4f, center.y - r * 0.3f))
-        drawCircle(color = tint, radius = r * 0.25f, center = Offset(center.x, center.y + r * 0.35f))
-    }
-}
-
-@Composable
 fun RefreshIcon(modifier: Modifier = Modifier, tint: Color = Color.White) {
     Canvas(modifier = modifier) {
-        val r = size.minDimension * 0.4f
-        drawArc(
-            color = tint,
-            startAngle = 0f,
-            sweepAngle = 280f,
-            useCenter = false,
-            topLeft = Offset(center.x - r, center.y - r),
-            size = androidx.compose.ui.geometry.Size(r * 2f, r * 2f),
-            style = Stroke(width = 3.dp.toPx())
-        )
+        val w = size.width
+        val h = size.height
+        val path = Path().apply {
+            moveTo(w * 0.5f, h * 0.1f)
+            quadraticTo(w * 0.9f, h * 0.1f, w * 0.9f, h * 0.5f)
+            quadraticTo(w * 0.9f, h * 0.9f, w * 0.5f, h * 0.9f)
+            quadraticTo(w * 0.1f, h * 0.9f, w * 0.1f, h * 0.5f)
+        }
+        drawPath(path, color = tint, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx()))
     }
 }
 
 @Composable
 fun TouchIcon(modifier: Modifier = Modifier, tint: Color = Color.White) {
     Canvas(modifier = modifier) {
-        val r = size.minDimension / 2f
-        drawCircle(color = tint.copy(alpha = 0.4f), radius = r)
-        drawCircle(color = tint, radius = r * 0.4f)
+        val w = size.width
+        drawCircle(color = tint.copy(alpha = 0.35f), radius = w * 0.45f)
+        drawCircle(color = tint, radius = w * 0.2f)
     }
 }
 
 /**
- * A reusable interactive Button with a Mesh Gradient background.
+ * A reusable interactive Button with a Stardust Mesh Gradient background.
  * Supports smooth press scaling, dynamic color state, and custom click actions.
  */
 @Composable
-fun MeshGradientButton(
+fun StardustMeshButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     colors: List<Color> = ColorPreset.SUNSET.colors,
@@ -163,58 +146,7 @@ fun MeshGradientButton(
         label = "buttonScale"
     )
 
-    var time by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) {
-        var lastTime = 0L
-        while (true) {
-            withFrameNanos { frameTime ->
-                if (lastTime != 0L) {
-                    time += (frameTime - lastTime) / 1_000_000_000f
-                }
-                lastTime = frameTime
-            }
-        }
-    }
-
-    val animSpeed = if (isPressed) 1.5f else 0.4f
-
-    val points = remember(time, animSpeed) {
-        val width = 3
-        val height = 3
-        Array(width * height) { i ->
-            val col = i % width
-            val row = i / width
-            val px = col / (width - 1f)
-            val py = row / (height - 1f)
-
-            if (row == 0 || row == height - 1 || col == 0 || col == width - 1) {
-                Offset(px, py)
-            } else {
-                val nx = SimplexNoise.noise(px * 2f + time * animSpeed, i.toFloat()) * 0.15f
-                val ny = SimplexNoise.noise(py * 2f + time * animSpeed, i + 50f) * 0.15f
-                Offset(px + nx, py + ny)
-            }
-        }
-    }
-
-    val gridColors = remember(colors) {
-        val width = 3
-        val height = 3
-        val c0 = colors.getOrElse(0) { Color.Red }
-        val c1 = colors.getOrElse(1) { Color.Yellow }
-        val c2 = colors.getOrElse(2) { Color.Green }
-        val c3 = colors.getOrElse(3) { Color.Blue }
-
-        Array(width * height) { i ->
-            val col = i % width
-            val row = i / width
-            val fx = col / (width - 1f)
-            val fy = row / (height - 1f)
-            val top = lerp(c0, c1, fx)
-            val bottom = lerp(c2, c3, fx)
-            lerp(top, bottom, fy)
-        }
-    }
+    val animSpeed = if (isPressed) 0.6f else 0.15f
 
     Surface(
         onClick = onClick,
@@ -231,14 +163,14 @@ fun MeshGradientButton(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            StardustMesh(
-                modifier = Modifier.matchParentSize(),
+            AnimatedStardustMesh(
+                colors = colors,
                 width = 3,
                 height = 3,
-                points = points,
-                colors = gridColors,
+                speed = animSpeed,
+                wobbleAmount = 0.15f,
                 dustIntensity = dustIntensity,
-                dustAnimationSpeed = 0f
+                modifier = Modifier.matchParentSize()
             )
 
             // Gloss overlay
@@ -261,6 +193,17 @@ fun MeshGradientButton(
         }
     }
 }
+
+/** Backward-compatible alias for [StardustMeshButton]. */
+@Composable
+fun MeshGradientButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    colors: List<Color> = ColorPreset.SUNSET.colors,
+    shape: Shape = RoundedCornerShape(16.dp),
+    dustIntensity: Float = 0.08f,
+    content: @Composable () -> Unit
+) = StardustMeshButton(onClick, modifier, colors, shape, dustIntensity, content)
 
 /**
  * An interactive touch button that physically deforms the mesh gradient
@@ -394,17 +337,17 @@ fun InteractiveTouchMeshButton(
 }
 
 /**
- * A Loading Card component where the mesh gradient flows rapidly with intense colors while loading,
- * and smoothly slows down to fixed colors when loading finishes!
+ * A Loading Card component where the mesh gradient flows smoothly,
+ * and speeds up when loading!
  */
 @Composable
-fun LoadingMeshGradientCard(
+fun LoadingStardustMeshCard(
     isLoading: Boolean,
     onToggleLoading: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val animSpeed by animateFloatAsState(
-        targetValue = if (isLoading) 2.2f else 0.25f,
+        targetValue = if (isLoading) 0.8f else 0.08f,
         animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
         label = "loadingSpeed"
     )
@@ -419,95 +362,54 @@ fun LoadingMeshGradientCard(
     val c2 by animateColorAsState(targetC2, tween(1000), label = "c2")
     val c3 by animateColorAsState(targetC3, tween(1000), label = "c3")
 
-    var time by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) {
-        var lastTime = 0L
-        while (true) {
-            withFrameNanos { frameTime ->
-                if (lastTime != 0L) {
-                    val dt = (frameTime - lastTime) / 1_000_000_000f
-                    time += dt * animSpeed
-                }
-                lastTime = frameTime
-            }
-        }
-    }
-
-    val points = remember(time) {
-        val w = 3; val h = 3
-        Array(w * h) { i ->
-            val col = i % w; val row = i / h
-            val px = col / (w - 1f); val py = row / (h - 1f)
-            if (row == 0 || row == h - 1 || col == 0 || col == w - 1) {
-                Offset(px, py)
-            } else {
-                val nx = SimplexNoise.noise(px * 1.5f + time, i.toFloat()) * 0.16f
-                val ny = SimplexNoise.noise(py * 1.5f + time, i + 50f) * 0.16f
-                Offset(px + nx, py + ny)
-            }
-        }
-    }
-
-    val gridColors = remember(c0, c1, c2, c3) {
-        Array(9) { i ->
-            val fx = (i % 3) / 2f; val fy = (i / 3) / 2f
-            lerp(lerp(c0, c1, fx), lerp(c2, c3, fx), fy)
-        }
-    }
-
-    val shape = RoundedCornerShape(20.dp)
-
-    Surface(
-        onClick = onToggleLoading,
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .border(1.5.dp, if (isLoading) Color.Cyan.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.2f), shape),
-        shape = shape,
-        color = Color.Transparent
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Box(
-            modifier = Modifier.padding(20.dp),
-            contentAlignment = Alignment.CenterStart
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
         ) {
-            StardustMesh(
-                modifier = Modifier.matchParentSize(),
+            AnimatedStardustMesh(
+                colors = listOf(c0, c1, c2, c3),
                 width = 3,
                 height = 3,
-                points = points,
-                colors = gridColors,
-                dustIntensity = if (isLoading) 0.15f else 0.04f
+                speed = animSpeed,
+                wobbleAmount = 0.16f,
+                dustIntensity = 0.06f,
+                modifier = Modifier.fillMaxSize()
             )
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column {
-                    Text(
-                        text = if (isLoading) "Loading Content..." else "Content Loaded",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    )
-                    Text(
-                        text = if (isLoading) "Rapid mesh flow active..." else "Slow motion & fixed theme palette",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 12.sp
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.Black.copy(alpha = 0.4f)
+                Text(
+                    text = if (isLoading) "SYNCING DATA..." else "SYNC COMPLETE",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = if (isLoading) "High-speed mesh gradient flowing" else "Mesh speed slowed to idle",
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 12.sp
+                )
+                Spacer(Modifier.height(16.dp))
+                StardustMeshButton(
+                    onClick = onToggleLoading,
+                    colors = if (isLoading) ColorPreset.CYBERPUNK.colors else ColorPreset.AURORA.colors
                 ) {
                     Text(
-                        text = if (isLoading) "Simulate Done" else "Simulate Load",
+                        text = if (isLoading) "Pause Loading" else "Resume Loading",
                         color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
                     )
                 }
             }
@@ -515,18 +417,26 @@ fun LoadingMeshGradientCard(
     }
 }
 
+/** Backward-compatible alias for [LoadingStardustMeshCard]. */
+@Composable
+fun LoadingMeshGradientCard(
+    isLoading: Boolean,
+    onToggleLoading: () -> Unit,
+    modifier: Modifier = Modifier
+) = LoadingStardustMeshCard(isLoading, onToggleLoading, modifier)
+
 /**
- * A Circular Floating Action Button styled with animated Mesh Gradient.
+ * A Circular Floating Action Button styled with animated Stardust Mesh Gradient.
  */
 @Composable
-fun MeshGradientFAB(
+fun StardustMeshFAB(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     colors: List<Color> = ColorPreset.AURORA.colors,
     size: Dp = 64.dp,
     icon: @Composable () -> Unit = { SparklesIcon(Modifier.size(22.dp), Color.White) }
 ) {
-    MeshGradientButton(
+    StardustMeshButton(
         onClick = onClick,
         modifier = modifier.size(size),
         colors = colors,
@@ -535,6 +445,16 @@ fun MeshGradientFAB(
         icon()
     }
 }
+
+/** Backward-compatible alias for [StardustMeshFAB]. */
+@Composable
+fun MeshGradientFAB(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    colors: List<Color> = ColorPreset.AURORA.colors,
+    size: Dp = 64.dp,
+    icon: @Composable () -> Unit = { SparklesIcon(Modifier.size(22.dp), Color.White) }
+) = StardustMeshFAB(onClick, modifier, colors, size, icon)
 
 /**
  * Comprehensive Demo showing smooth background mesh gradient, interactive gradient buttons,
@@ -554,61 +474,16 @@ fun GradientButtonsDemo(modifier: Modifier = Modifier) {
     val bgC2 by animateColorAsState(activePreset.colors[2], tween(800, easing = FastOutSlowInEasing), label = "c2")
     val bgC3 by animateColorAsState(activePreset.colors[3], tween(800, easing = FastOutSlowInEasing), label = "c3")
 
-    var time by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(animSpeed) {
-        var lastTime = 0L
-        while (true) {
-            withFrameNanos { frameTime ->
-                if (lastTime != 0L) {
-                    val dt = (frameTime - lastTime) / 1_000_000_000f
-                    time += dt * animSpeed
-                }
-                lastTime = frameTime
-            }
-        }
-    }
-
-    val bgPoints = remember(time) {
-        val w = 3
-        val h = 3
-        Array(w * h) { i ->
-            val col = i % w
-            val row = i / h
-            val px = col / (w - 1f)
-            val py = row / (h - 1f)
-            if (row == 0 || row == h - 1 || col == 0 || col == h - 1) {
-                Offset(px, py)
-            } else {
-                val nx = SimplexNoise.noise(px * 1.5f + time * 0.4f, i.toFloat()) * 0.16f
-                val ny = SimplexNoise.noise(py * 1.5f + time * 0.4f, i + 50f) * 0.16f
-                Offset(px + nx, py + ny)
-            }
-        }
-    }
-
-    val bgGridColors = remember(bgC0, bgC1, bgC2, bgC3) {
-        val w = 3
-        val h = 3
-        Array(w * h) { i ->
-            val col = i % w
-            val row = i / h
-            val fx = col / (w - 1f)
-            val fy = row / (h - 1f)
-            val top = lerp(bgC0, bgC1, fx)
-            val bottom = lerp(bgC2, bgC3, fx)
-            lerp(top, bottom, fy)
-        }
-    }
-
     Box(modifier = modifier.fillMaxSize()) {
         // Smooth background mesh
-        StardustMesh(
-            modifier = Modifier.fillMaxSize(),
+        AnimatedStardustMesh(
+            colors = listOf(bgC0, bgC1, bgC2, bgC3),
             width = 3,
             height = 3,
-            points = bgPoints,
-            colors = bgGridColors,
-            dustIntensity = 0.08f
+            speed = animSpeed * 0.15f,
+            wobbleAmount = 0.16f,
+            dustIntensity = 0.08f,
+            modifier = Modifier.fillMaxSize()
         )
 
         // Overlay Content
@@ -648,26 +523,24 @@ fun GradientButtonsDemo(modifier: Modifier = Modifier) {
             )
 
             // Loading State Mesh Card
-            LoadingMeshGradientCard(
+            LoadingStardustMeshCard(
                 isLoading = isLoadingCard,
-                onToggleLoading = { isLoadingCard = !isLoadingCard }
+                onToggleLoading = { isLoadingCard = !isLoadingCard },
+                modifier = Modifier.fillMaxWidth()
             )
 
-            // Demo Buttons Row & Actions
+            // Palette Selector Bar
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.65f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.65f))
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Gradient Preset Palette",
+                        text = "Select Theme Palette:",
                         color = Color.White,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
 
                     FlowRow(
@@ -675,86 +548,54 @@ fun GradientButtonsDemo(modifier: Modifier = Modifier) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ColorPreset.entries.forEach { preset ->
-                            val isSelected = preset == activePreset
+                            val isSelected = activePreset == preset
                             Surface(
                                 onClick = { activePreset = preset },
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.1f),
-                                border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, Color.White) else null
+                                color = if (isSelected) Color.White.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .clip(CircleShape)
-                                            .background(preset.colors.first())
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = preset.title,
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                }
+                                Text(
+                                    text = preset.title,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
                             }
-                        }
-                    }
-
-                    Spacer(Modifier.height(4.dp))
-
-                    Text(
-                        text = "Interactive Gradient Buttons ($clickCount clicks)",
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        MeshGradientButton(
-                            onClick = { clickCount++ },
-                            colors = ColorPreset.CYBERPUNK.colors,
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                PlayIcon(Modifier.size(16.dp), Color.White)
-                                Spacer(Modifier.width(6.dp))
-                                Text("Primary CTA", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            }
-                        }
-
-                        MeshGradientButton(
-                            onClick = {
-                                activePreset = ColorPreset.entries[Random.nextInt(ColorPreset.entries.size)]
-                            },
-                            colors = ColorPreset.AURORA.colors,
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                PaletteIcon(Modifier.size(16.dp), Color.White)
-                                Spacer(Modifier.width(6.dp))
-                                Text("Randomize", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            }
-                        }
-
-                        MeshGradientFAB(
-                            onClick = {
-                                animSpeed = if (animSpeed > 1.2f) 0.5f else 1.8f
-                            },
-                            colors = ColorPreset.COSMIC.colors,
-                            size = 48.dp
-                        ) {
-                            RefreshIcon(Modifier.size(20.dp), Color.White)
                         }
                     }
                 }
+            }
+
+            // Row of Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StardustMeshButton(
+                    onClick = { clickCount++ },
+                    colors = activePreset.colors
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PlayIcon(Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Clicks: $clickCount",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                StardustMeshFAB(
+                    onClick = {
+                        val nextIndex = (activePreset.ordinal + 1) % ColorPreset.entries.size
+                        activePreset = ColorPreset.entries[nextIndex]
+                    },
+                    colors = activePreset.colors
+                )
             }
         }
     }

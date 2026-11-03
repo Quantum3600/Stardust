@@ -20,116 +20,39 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.quantum3600.stardust.data.BezierPoint
-import io.github.quantum3600.stardust.utils.SimplexNoise
-import io.github.quantum3600.stardust.utils.lerp
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
 /**
- * An interactive demo showcasing:
- * 1. Asymmetric color pulling with explicit [BezierPoint] tangent handles animated via Simplex noise.
- * 2. 2D spatial grid coordinate color generation (fx = col/(w-1), fy = row/(h-1)) for multi-directional gradients.
- * 3. Animated procedural film grain / stardust dithering by updating grainSeed continuously.
+ * An interactive demo showcasing the high-level [AnimatedBezierMeshGradient] API:
+ * 1. Fluid Bézier curves and organic tangent motion.
+ * 2. Real-time control of animation speed, point randomness, and film grain.
+ * 3. Dynamic color palette updates with spatial grid blending.
  */
 @Composable
 fun BezierAndGrainDemo(modifier: Modifier = Modifier) {
     var grainIntensity by remember { mutableFloatStateOf(0.12f) }
     var animSpeed by remember { mutableFloatStateOf(1.0f) }
     var pointRandomness by remember { mutableFloatStateOf(0.18f) }
-
-    var grainSeed by remember { mutableFloatStateOf(0f) }
-    var time by remember { mutableFloatStateOf(0f) }
-
     var paletteSeed by remember { mutableFloatStateOf(Random.nextFloat() * 360f) }
 
-    // Continuous animation loop for time and grainSeed
-    LaunchedEffect(animSpeed) {
-        var lastTime = 0L
-        while (true) {
-            withFrameNanos { frameTime ->
-                if (lastTime != 0L) {
-                    val dt = (frameTime - lastTime) / 1_000_000_000f
-                    time += dt * animSpeed
-                    grainSeed += dt * 60f
-                }
-                lastTime = frameTime
-            }
-        }
-    }
-
-    val gridWidth = 3
-    val gridHeight = 3
-
-    val bezierPoints = remember(time, pointRandomness) {
-        List(gridHeight) { row ->
-            List(gridWidth) { col ->
-                val posX = col / (gridWidth - 1f)
-                val posY = row / (gridHeight - 1f)
-                val pos = Offset(posX, posY)
-
-                val pointIdx = row * gridWidth + col
-                val isBorder = row == 0 || row == gridHeight - 1 || col == 0 || col == gridWidth - 1
-
-                val activePos = if (isBorder) pos else {
-                    val nx = SimplexNoise.noise(posX * 2f + time * 0.5f, pointIdx.toFloat()) * pointRandomness
-                    val ny = SimplexNoise.noise(posY * 2f + time * 0.5f, pointIdx + 50f) * pointRandomness
-                    Offset(posX + nx, posY + ny)
-                }
-
-                // Asymmetric tangent handle motion
-                val tldX = -0.18f + SimplexNoise.noise(time * 0.9f, pointIdx + 10f) * 0.15f
-                val tldY = SimplexNoise.noise(time * 0.9f, pointIdx + 20f) * 0.15f
-
-                val ttrX = 0.18f + SimplexNoise.noise(time * 0.9f, pointIdx + 30f) * 0.15f
-                val ttrY = SimplexNoise.noise(time * 0.9f, pointIdx + 40f) * 0.15f
-
-                val ttopX = SimplexNoise.noise(time * 0.9f, pointIdx + 60f) * 0.15f
-                val ttopY = -0.18f + SimplexNoise.noise(time * 0.9f, pointIdx + 70f) * 0.15f
-
-                val tbotX = SimplexNoise.noise(time * 0.9f, pointIdx + 80f) * 0.15f
-                val tbotY = 0.18f + SimplexNoise.noise(time * 0.9f, pointIdx + 90f) * 0.15f
-
-                BezierPoint.withTangents(
-                    position = activePos,
-                    uTangentLeading = Offset(tldX, tldY),
-                    uTangentTrailing = Offset(ttrX, ttrY),
-                    vTangentTop = Offset(ttopX, ttopY),
-                    vTangentBottom = Offset(tbotX, tbotY)
-                )
-            }
-        }
-    }
-
-    // Generate colors using 2D spatial grid coordinates fx = col/(w-1) and fy = row/(h-1)
-    val colors = remember(time, paletteSeed) {
-        val colorTL = Color.hsv((paletteSeed + time * 15f) % 360f, 0.85f, 0.95f)
-        val colorTR = Color.hsv((paletteSeed + 90f + time * 15f) % 360f, 0.85f, 0.95f)
-        val colorBL = Color.hsv((paletteSeed + 180f + time * 15f) % 360f, 0.85f, 0.95f)
-        val colorBR = Color.hsv((paletteSeed + 270f + time * 15f) % 360f, 0.85f, 0.95f)
-
-        List(gridHeight) { row ->
-            List(gridWidth) { col ->
-                val fx = col / (gridWidth - 1f)
-                val fy = row / (gridHeight - 1f)
-                val topColor = lerp(colorTL, colorTR, fx)
-                val bottomColor = lerp(colorBL, colorBR, fx)
-                lerp(topColor, bottomColor, fy)
-            }
-        }
+    val cornerColors = remember(paletteSeed) {
+        listOf(
+            Color.hsv((paletteSeed) % 360f, 0.85f, 0.95f),
+            Color.hsv((paletteSeed + 90f) % 360f, 0.85f, 0.95f),
+            Color.hsv((paletteSeed + 180f) % 360f, 0.85f, 0.95f),
+            Color.hsv((paletteSeed + 270f) % 360f, 0.85f, 0.95f)
+        )
     }
 
     Card(
@@ -138,12 +61,14 @@ fun BezierAndGrainDemo(modifier: Modifier = Modifier) {
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            StardustMesh(
-                bezierPoints = bezierPoints,
-                colors = colors,
-                modifier = Modifier.fillMaxSize(),
-                grainIntensity = grainIntensity,
-                grainSeed = grainSeed
+            AnimatedBezierStardustMesh(
+                colors = cornerColors,
+                width = 3,
+                height = 3,
+                speed = animSpeed,
+                randomness = pointRandomness,
+                dustIntensity = grainIntensity,
+                modifier = Modifier.fillMaxSize()
             )
 
             Column(

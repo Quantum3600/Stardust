@@ -15,11 +15,11 @@ import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 import org.jetbrains.skia.Shader
 
-internal actual class MeshGradientShader actual constructor(
+internal actual class StardustMeshShader actual constructor(
     private val width: Int,
     private val height: Int,
 ) {
-    private val effect = RuntimeEffect.makeForShader(MeshGradientShaderSource)
+    private val effect = RuntimeEffect.makeForShader(StardustMeshShaderSource)
     private val builder = RuntimeShaderBuilder(effect)
     private val maxPackedPoints = (maxControlPoints + 1) / 2
     private val pointUniforms = FloatArray(maxPackedPoints * 4)

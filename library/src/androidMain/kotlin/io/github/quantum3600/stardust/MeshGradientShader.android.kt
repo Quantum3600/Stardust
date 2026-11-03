@@ -25,7 +25,7 @@ import java.lang.reflect.Method
 import kotlin.math.max
 import kotlin.math.min
 
-internal actual class MeshGradientShader actual constructor(
+internal actual class StardustMeshShader actual constructor(
     private val width: Int,
     private val height: Int,
 ) {

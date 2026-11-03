@@ -1,3 +1,5 @@
+import java.net.HttpURLConnection
+import java.net.URI
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
@@ -9,7 +11,7 @@ plugins {
 }
 
 group = "io.github.quantum3600"
-version = "1.0.5-alpha01"
+version = "1.0.5-alpha05"
 
 android {
     namespace = "io.github.quantum3600.stardust"
@@ -87,6 +89,35 @@ mavenPublishing {
             connection.set("scm:git:github.com/quantum3600/stardust.git")
             developerConnection.set("scm:git:ssh://github.com/quantum3600/stardust.git")
             url.set("https://github.com/quantum3600/stardust")
+        }
+    }
+}
+
+tasks.register("notifyKlibsIo") {
+    group = "publishing"
+    description = "Checks Google Maven Central Mirror and provides klibs.io indexing links."
+    doLast {
+        val artifactId = "stardust"
+        val groupPath = project.group.toString().replace('.', '/')
+        val artifactCoordinate = "${project.group}:$artifactId:${project.version}"
+        val mirrorPomUrlStr = "https://maven-central.storage-download.googleapis.com/maven2/$groupPath/$artifactId/${project.version}/$artifactId-${project.version}.pom"
+
+        println("Checking Google Maven Central Mirror for $artifactCoordinate...")
+        val isAvailableOnMirror = runCatching {
+            val mirrorConn = URI.create(mirrorPomUrlStr).toURL().openConnection() as HttpURLConnection
+            mirrorConn.requestMethod = "HEAD"
+            mirrorConn.responseCode == 200
+        }.getOrDefault(false)
+
+        if (!isAvailableOnMirror) {
+            println("WARNING: $artifactCoordinate is NOT found on Google's mirror yet ($mirrorPomUrlStr).")
+            println("klibs.io cannot index files that are absent from the mirror. Please publish to Maven Central first and wait for mirror propagation.")
+        } else {
+            println("SUCCESS: $artifactCoordinate is verified and live on Google's Maven Central mirror!")
+            println("Mirror POM: $mirrorPomUrlStr")
+            println("\nTo index this version on klibs.io immediately:")
+            println("1. Open https://klibs.io")
+            println("2. Submit an indexing request for coordinates: $artifactCoordinate (or GitHub URL: https://github.com/quantum3600/stardust)")
         }
     }
 }
