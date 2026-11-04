@@ -6,7 +6,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.graphics.asComposeShader
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 
@@ -18,7 +17,7 @@ internal class SkslMeshProgram(gridWidth: Int, gridHeight: Int) : MeshShaderProg
         builder.uniform(MeshShaderSource.U_RESOLUTION, size.width, size.height)
         builder.uniform(MeshShaderSource.U_POINTS, points)
         builder.uniform(MeshShaderSource.U_COLORS, colors)
-        return ShaderBrush(builder.makeShader().asComposeShader())
+        return ShaderBrush(builder.makeShader())
     }
 }
 

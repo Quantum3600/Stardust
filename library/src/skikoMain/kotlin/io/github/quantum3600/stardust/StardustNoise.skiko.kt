@@ -3,7 +3,6 @@ package io.github.quantum3600.stardust
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.graphics.asComposeShader
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 
@@ -35,6 +34,6 @@ half4 main(float2 coord) {
         builder.uniform("uResolution", size.width, size.height)
         builder.uniform("uIntensity", intensity)
         builder.uniform("uSeed", seed)
-        return ShaderBrush(builder.makeShader().asComposeShader())
+        return ShaderBrush(builder.makeShader())
     }
 }
