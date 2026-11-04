@@ -9,7 +9,8 @@ import kotlin.math.min
  * Utility class for mesh gradient interpolation calculations
  * This class was used for CPU rendering before, but is now primarily for reference
  * and potential future use cases.
- * Interpolation used here is exactly the same as in the shader.
+ * Output is in normalized [0,1] space (y down), the same space the shaders consume.
+ * (The old version scaled inner samples to [-1,1] but left the last row/column in [0,1].)
  */
 internal object MeshInterpolation {
     /**
@@ -73,8 +74,8 @@ internal object MeshInterpolation {
         val colors = FloatArray(totalX * totalY * 4)
 
         // Temporary arrays to store intermediate results after X interpolation
-        val interpPositionsX = Array(totalY) { Array(totalX) { Offset.Companion.Zero } }
-        val interpColorsX = Array(totalY) { Array(totalX) { Color.Companion.Transparent } }
+        val interpPositionsX = Array(totalY) { Array(totalX) { Offset.Zero } }
+        val interpColorsX = Array(totalY) { Array(totalX) { Color.Transparent } }
 
         // Pass 1: Interpolate along X for each control row
         for (gy in 0 until gridHeight) {

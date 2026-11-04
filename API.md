@@ -1,459 +1,292 @@
-# Stardust API Reference & Usage Guide
+# API reference
 
-Complete API documentation for **Stardust** (`StardustMesh` / `MeshGradient`), a Compose Multiplatform library for GPU-accelerated bicubic mesh gradients and film grain textures across Android, iOS, Desktop (JVM), JS, and Wasm.
+Package: `io.github.quantum3600.stardust` (utils in `.utils`, data in `.data`).
 
----
-
-## Table of Contents
-
-1. [Core Composables](#core-composables)
-   - [`StardustMesh` / `MeshGradient`](#stardustmesh--meshgradient)
-   - [`AnimatedStardustMesh` / `AnimatedMeshGradient`](#animatedstardustmesh--animatedmeshgradient)
-2. [State Holders](#state-holders)
-   - [`StardustMeshState` / `MeshGradientState`](#stardustmeshstate--meshgradientstate)
-   - [`AnimatedStardustMeshState`](#animatedstardustmeshstate)
-3. [Utilities & Extensions](#utilities--extensions)
-   - [`rememberSimplexAnimatedMesh`](#remembersimplexanimatedmesh)
-   - [`InfiniteTransition.animateOffset`](#infinitetransitionanimateoffset)
-   - [`Modifier.stardust`](#modifierstardust)
-4. [Usage Examples](#usage-examples)
-   - [Static Gradients (2x2, 3x3, 4x4)](#static-gradients)
-   - [Animating Colors](#animating-colors)
-   - [Animating Control Points](#animating-control-points)
-   - [Fluid Simplex Noise Animation](#fluid-simplex-noise-animation)
+- [Concepts](#concepts)
+- [Composables](#composables)
+- [StardustMeshState](#stardustmeshstate)
+- [Utilities](#utilities)
+- [Animation helpers](#animation-helpers)
+- [Platform backends](#platform-backends)
+- [Performance and limits](#performance-and-limits)
+- [Threading](#threading)
+- [Troubleshooting](#troubleshooting)
+- [Migrating from the Android-only library](#migrating-from-the-android-only-library)
 
 ---
 
-## Core Composables
+## Concepts
 
-### `StardustMesh` / `MeshGradient`
+A mesh is a `width x height` grid of **control points**. Each point has a **position** and a **colour**.
+Arrays are flattened row-major: `index = row * width + column`.
 
-The primary composable for rendering bicubic mesh gradients with explicit point arrays or a state holder. `MeshGradient` is an exact alias for `StardustMesh`.
+| Convention | Value |
+|---|---|
+| Coordinate space | Normalized `[0, 1]` on both axes, relative to the composable's bounds |
+| Origin | **Top-left**, y grows downward (Compose convention) |
+| Minimum grid | 2 x 2 |
+| Interpolation | Catmull-Rom (bicubic) between control points; edge neighbours are clamped |
+| Border points | Normally kept on the edges (`0` or `1`) so the mesh fills the composable. Areas not covered by the mesh are transparent |
+
+---
+
+## Composables
+
+### `StardustMesh` (array overload)
 
 ```kotlin
 @Composable
 fun StardustMesh(
+    modifier: Modifier = Modifier,
     width: Int,
     height: Int,
     points: Array<Offset>,
     colors: Array<Color>,
-    modifier: Modifier = Modifier,
     globalSubdivisions: Int = 32,
-    dustIntensity: Float = 0f
 )
+```
 
+Renders a mesh from fixed arrays. Recomposes when you pass new arrays.
+
+| Parameter | Description |
+|---|---|
+| `modifier` | Standard modifier. Size it (e.g. `fillMaxSize()`); the mesh fills the bounds. |
+| `width`, `height` | Number of control points per row / column (>= 2). |
+| `points` | `width * height` normalized positions. Throws `IllegalArgumentException` on size mismatch. |
+| `colors` | `width * height` colours. Throws `IllegalArgumentException` on size mismatch. |
+| `globalSubdivisions` | Tessellation per cell. **Only used by the OpenGL fallback** (Android < 33). Ignored by AGSL/SkSL, which are per-pixel. |
+
+Use this overload for static meshes or when you drive the arrays yourself.
+
+### `MeshGradient` (state overload)
+
+```kotlin
 @Composable
-fun StardustMesh(
+fun MeshGradient(
+    modifier: Modifier = Modifier,
     width: Int,
     height: Int,
-    modifier: Modifier = Modifier,
     globalSubdivisions: Int = 32,
-    dustIntensity: Float = 0f,
-    state: StardustMeshState
+    state: StardustMeshState,
 )
 ```
 
-#### Parameters
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `width` | `Int` | *(Required)* | Number of control points horizontally (e.g. `2`, `3`, `4`). |
-| `height` | `Int` | *(Required)* | Number of control points vertically (e.g. `2`, `3`, `4`). |
-| `points` | `Array<Offset>` | *(Required)* | Control point positions in normalized `[0.0, 1.0]` coordinates (`width * height` items). |
-| `colors` | `Array<Color>` | *(Required)* | Colors for each control point (`width * height` items). |
-| `modifier` | `Modifier` | `Modifier` | Layout modifier applied to the composable. |
-| `globalSubdivisions` | `Int` | `32` | Tessellation density for legacy rendering pipelines. |
-| `dustIntensity` | `Float` | `0f` | Static procedural film grain intensity (`0.0f` = disabled, `0.08f` = subtle grain). |
-| `state` | `StardustMeshState` | *(Required)* | State holder for programmatic animation or frame-by-frame point updates. |
+Renders from a [`StardustMeshState`](#stardustmeshstate). On AGSL/SkSL the state is read in the **draw phase**,
+so animating points or colours only invalidates drawing: no recomposition and no per-frame allocation.
+Prefer this overload for anything animated.
 
----
-
-### `AnimatedStardustMesh` / `AnimatedMeshGradient`
-
-High-level, zero-boilerplate composable that drives continuous, fluid Simplex noise mesh animations with zero heap allocations on VSYNC.
+### `rememberStardustMeshState`
 
 ```kotlin
 @Composable
-fun AnimatedStardustMesh(
-    colors: List<Color>,
-    modifier: Modifier = Modifier,
-    width: Int = 4,
-    height: Int = 4,
-    speed: Float = 0.3f,
-    wobbleAmount: Float = 0.2f,
-    dustIntensity: Float = 0f,
-    state: AnimatedStardustMeshState = rememberAnimatedStardustMeshState(...)
-)
+fun rememberStardustMeshState(points: Array<Offset>, colors: Array<Color>): StardustMeshState
 ```
 
-#### Parameters
-| Parameter | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `colors` | `List<Color>` | *(Required)* | 4 corner colors or a grid of `width * height` colors. |
-| `width` | `Int` | `4` | Number of horizontal grid points. |
-| `height` | `Int` | `4` | Number of vertical grid points. |
-| `speed` | `Float` | `0.3f` | Flow speed of interior point motion (`0f` to freeze motion). |
-| `wobbleAmount` | `Float` | `0.2f` | Distortion amplitude of interior point movement (`0.0f` to `0.35f`). |
-| `dustIntensity` | `Float` | `0f` | Static film grain overlay intensity (`0.0f` to `0.25f`). |
-| `state` | `AnimatedStardustMeshState` | *(Default)* | Optional state holder to control speed, wobble, or colors programmatically. |
+Remembers a state keyed on the **contents** of `points` and `colors` (not array identity), so an inline
+`arrayOf(...)` doesn't reset it on every recomposition. Changing the contents creates a fresh state.
 
 ---
 
-## State Holders
-
-### `StardustMeshState` / `MeshGradientState`
-
-State holder for programmatic animation and frame-by-frame control point updates.
+## StardustMeshState
 
 ```kotlin
 @Stable
-class StardustMeshState(
-    initialPoints: Array<Offset>,
-    initialColors: Array<Color> = emptyArray()
-) {
-    val points: List<Offset>
-    val colors: List<Color>
-
-    suspend fun animatePoint(index: Int, target: Offset, spec: AnimationSpec<Offset>)
-    fun setColor(index: Int, color: Color)
-    suspend fun snapAllPoints(newOffsets: List<Offset>)
-    fun snapAllPoints(newOffsets: FloatArray)
-}
-
-@Composable
-fun rememberStardustMeshState(
-    points: Array<Offset>,
-    colors: Array<Color> = emptyArray()
-): StardustMeshState
+class StardustMeshState(initialPoints: Array<Offset>, initialColors: Array<Color>)
 ```
 
----
+Holds one `Animatable<Offset>` per point and a state list of colours. `initialPoints.size` must equal
+`initialColors.size`.
 
-### `AnimatedStardustMeshState`
+| Member | Description |
+|---|---|
+| `val points: List<Offset>` | Current positions. Allocates a new list per call; use for reading/inspection. |
+| `val colors: List<Color>` | Current colours (observable). |
+| `fun pointsArray(): FloatArray` | Reusable `[x0,y0,x1,y1,...]` snapshot. Reads Compose state; call from draw/snapshot scope. Do not retain. |
+| `fun colorsArray(): FloatArray` | Reusable `[r,g,b,a,...]` snapshot. Same rules. |
+| `suspend fun animatePoint(index, target, spec: AnimationSpec<Offset>)` | Animates one control point. |
+| `fun setColor(index, color)` | Sets a colour immediately (triggers a redraw). |
+| `suspend fun snapAllPoints(newOffsets: List<Offset>)` | Jumps all points; extra entries are ignored. |
 
-State holder for controlling `AnimatedStardustMesh` parameters dynamically.
+Example:
 
 ```kotlin
-@Stable
-class AnimatedStardustMeshState(
-    val width: Int = 4,
-    val height: Int = 4,
-    initialColors: List<Color> = defaultColors,
-    initialSpeed: Float = 0.3f,
-    initialWobbleAmount: Float = 0.2f
-) {
-    var speed: Float
-    var wobbleAmount: Float
-    var isPaused: Boolean
+val state = rememberStardustMeshState(generateMeshPoints(3, 3, 0f), colors)
+val scope = rememberCoroutineScope()
 
-    fun setColors(colors: List<Color>)
-}
+MeshGradient(Modifier.fillMaxSize(), width = 3, height = 3, state = state)
 
-@Composable
-fun rememberAnimatedStardustMeshState(
-    width: Int = 4,
-    height: Int = 4,
-    colors: List<Color> = AnimatedStardustMeshState.defaultColors,
-    speed: Float = 0.3f,
-    wobbleAmount: Float = 0.2f
-): AnimatedStardustMeshState
+Button(onClick = {
+    scope.launch {
+        state.animatePoint(4, Offset(0.7f, 0.3f), spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessLow))
+    }
+}) { Text("Move centre") }
 ```
 
 ---
 
-## Utilities & Extensions
+## Utilities
+
+Package `io.github.quantum3600.stardust.utils`.
+
+### `MeshData`
+
+```kotlin
+class MeshData(val points: Array<Offset>, val colors: Array<Color>)
+```
+Container with content-based `equals`/`hashCode`, plus `component1/2` and `copy`.
+
+### `generateMeshPoints`
+
+```kotlin
+fun generateMeshPoints(width: Int, height: Int, randomness: Float = 0.1f, random: Random = Random.Default): Array<Offset>
+```
+Regular grid; **inner** points are jittered by up to `randomness` (`0f..1f`, useful range `0..0.2`), border points are not.
+Pass a seeded `Random` for reproducible output.
+
+### `generateMeshColors`
+
+```kotlin
+fun generateMeshColors(
+    baseColors: List<Color>, // 1 or 2 colours
+    width: Int, height: Int,
+    colorVariance: Float = 0f, // 0..1
+    random: Random = Random.Default,
+): Array<Color>
+```
+One colour fills the mesh; two colours make a top-to-bottom linear (sRGB) gradient. `colorVariance` jitters hue (+/-10 deg) and
+HSV value (+/-0.2) per point; alpha is preserved.
+
+### `rememberThemedMeshData`
+
+```kotlin
+@Composable
+fun rememberThemedMeshData(
+    lightThemeColors: List<Color>, darkThemeColors: List<Color>,
+    width: Int, height: Int,
+    pointRandomness: Float = 0.1f, colorVariance: Float = 0f,
+): MeshData
+```
+Remembers generated data and switches colours with `isSystemInDarkTheme()`. Regenerates when any argument or the theme changes.
+
+### `lerp`
+
+```kotlin
+fun lerp(start: Color, stop: Color, fraction: Float): Color   // linear sRGB
+fun lerp(start: Offset, stop: Offset, fraction: Float): Offset // fraction clamped to 0..1
+```
+
+### `MeshInterpolation` (internal)
+
+CPU reference implementation of the interpolation (`generateMeshVerticesAndColors`, `catmullRom`). Output is normalized `[0,1]`.
+Useful for tests or a future CPU renderer; not used by the renderers.
+
+### `SimplexNoise`
+
+```kotlin
+object SimplexNoise { fun noise(xin: Float, yin: Float): Float } // [-1, 1]
+```
+2D simplex noise. The permutation table is randomized once per process.
+
+### `BezierPoint` (`.data`)
+
+Position plus four control points (leading/top/trailing/bottom). **Not used by the renderers yet.**
+Factories: `BezierPoint.simple(x, y)`, `BezierPoint.symmetric(position, controlPointOffset)`, `BezierPoint.withControls(...)`.
+
+---
+
+## Animation helpers
 
 ### `rememberSimplexAnimatedMesh`
-
-Composable utility that manages Simplex noise animation state for custom setups.
 
 ```kotlin
 @Composable
 fun rememberSimplexAnimatedMesh(
-    width: Int,
-    height: Int,
-    colors: List<Color>,
+    width: Int, height: Int,
+    colors: List<Color>,            // size == width * height
     animationSpeed: Float = 0.3f,
-    noiseIntensity: Float = 0.2f
+    noiseIntensity: Float = 0.2f,
 ): AnimatedMeshState
-```
 
----
+interface AnimatedMeshState {
+    val state: StardustMeshState    // pass to MeshGradient(state = ...)
+    val meshData: MeshData          // allocating snapshot
+}
+```
+Moves inner points with simplex noise (border points fixed), smoothed toward their targets each frame.
+`animationSpeed` and `noiseIntensity` can change live without restarting the loop. Changing `width`, `height` or the
+colours' contents restarts the animation.
+
+```kotlin
+val anim = rememberSimplexAnimatedMesh(4, 4, colors)
+MeshGradient(Modifier.fillMaxSize(), width = 4, height = 4, state = anim.state)
+```
 
 ### `InfiniteTransition.animateOffset`
 
-Animate individual `Offset` control points within an `InfiniteTransition`.
-
 ```kotlin
 @Composable
-fun InfiniteTransition.animateOffset(
-    initialValue: Offset,
-    targetValue: Offset,
-    animationSpec: InfiniteRepeatableSpec<Float>
-): State<Offset>
+fun InfiniteTransition.animateOffset(initialValue: Offset, targetValue: Offset, animationSpec: InfiniteRepeatableSpec<Float>): State<Offset>
 ```
+Convenience for infinitely animating an `Offset`.
 
 ---
 
-### `Modifier.stardust`
+## Platform backends
 
-Apply procedural static film grain texture overlays directly over any Compose component.
+| Target | Backend | Notes |
+|---|---|---|
+| Android 33+ | AGSL `RuntimeShader` | If shader creation throws, the library falls back to OpenGL automatically. |
+| Android 21-32 | OpenGL ES 3.0 `GLSurfaceView` | Requires an ES 3.0 context. Uses `globalSubdivisions`. |
+| Desktop (JVM), iOS, Web (js / wasmJs) | SkSL `RuntimeEffect` (Skiko) | Same shader source as AGSL. |
 
-```kotlin
-fun Modifier.stardust(
-    intensity: Float = 0.05f,
-    seed: Float = 0f,
-    blendMode: BlendMode = BlendMode.Overlay
-): Modifier
-```
+How the shader backends work: AGSL/SkSL have no vertex stage, so for each pixel the shader finds the mesh cell containing it
+(inverse bilinear mapping over the control points) and evaluates the colour with bicubic Catmull-Rom. Cell geometry uses
+straight-edged quads through the control points; colour interpolation is fully bicubic. The OpenGL path deforms a tessellated
+grid with Catmull-Rom positions, so on strongly bent meshes the two can differ slightly at cell edges.
 
----
-
-## Usage Examples
-
-### Static Gradients
-
-#### Static 2x2 Mesh Gradient
-```kotlin
-@Composable
-fun Static2x2Mesh() {
-    StardustMesh(
-        width = 2,
-        height = 2,
-        points = arrayOf(
-            Offset(0f, 0f), Offset(1f, 0f),
-            Offset(0f, 1f), Offset(1f, 1f)
-        ),
-        colors = arrayOf(
-            Color(0xFFF09819), Color(0xFFEDDE5D),
-            Color(0xFF8A2387), Color(0xFFE94057)
-        ),
-        modifier = Modifier.fillMaxSize()
-    )
-}
-```
-
-#### Static 3x3 Mesh Gradient
-```kotlin
-@Composable
-fun Static3x3Mesh() {
-    StardustMesh(
-        width = 3,
-        height = 3,
-        points = arrayOf(
-            Offset(0f, 0f),   Offset(0.5f, 0f),   Offset(1f, 0f),
-            Offset(0f, 0.5f), Offset(0.5f, 0.5f), Offset(1f, 0.5f),
-            Offset(0f, 1f),   Offset(0.5f, 1f),   Offset(1f, 1f)
-        ),
-        colors = arrayOf(
-            Color.Red,  Color.Yellow, Color.Green,
-            Color.Cyan, Color.Blue,   Color.Magenta,
-            Color.Black, Color.Gray,  Color.White
-        ),
-        modifier = Modifier.fillMaxSize()
-    )
-}
-```
-
-#### Static 4x4 Mesh Gradient
-```kotlin
-@Composable
-fun Static4x4Mesh() {
-    StardustMesh(
-        width = 4,
-        height = 4,
-        points = Array(16) { i ->
-            val col = i % 4
-            val row = i / 4
-            Offset(x = col / 3f, y = row / 3f)
-        },
-        colors = arrayOf(
-            Color(0xffF36E21), Color(0xffF0A92A), Color(0xffE7D043), Color(0xffE7E95D),
-            Color(0xffDFF168), Color(0xffB1E192), Color(0xff7FD3A9), Color(0xff5EC6B8),
-            Color(0xff4AB8C2), Color(0xff4099B9), Color(0xff3B79A8), Color(0xff395B93),
-            Color(0xff36447C), Color(0xff332E66), Color(0xff301E4E), Color(0xff2D1137)
-        ),
-        modifier = Modifier.fillMaxSize()
-    )
-}
-```
+Output is premultiplied alpha. Pixels outside every cell are transparent.
 
 ---
 
-### Animating Colors
+## Performance and limits
 
-```kotlin
-@Composable
-fun AnimatedColorMesh() {
-    val infiniteTransition = rememberInfiniteTransition(label = "color-transition")
-
-    val animatedColor1 = infiniteTransition.animateColor(
-        initialValue = Color(0xFF8A2387),
-        targetValue = Color(0xFFF09819),
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "color1"
-    )
-
-    val animatedColor2 = infiniteTransition.animateColor(
-        initialValue = Color(0xFFEDDE5D),
-        targetValue = Color(0xFFE94057),
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "color2"
-    )
-
-    StardustMesh(
-        width = 2,
-        height = 2,
-        points = arrayOf(
-            Offset(0f, 0f), Offset(1f, 0f),
-            Offset(0f, 1f), Offset(1f, 1f)
-        ),
-        colors = arrayOf(
-            animatedColor1.value, animatedColor2.value,
-            animatedColor2.value, animatedColor1.value
-        ),
-        modifier = Modifier.fillMaxSize()
-    )
-}
-```
+- **Grid size:** the shader is unrolled per cell, so GPU cost per pixel grows with the number of cells. 3x3 to 5x5 is the intended range;
+  go larger only after profiling on your lowest-end target.
+- **Animation:** use the state overload. The array overload rebuilds float arrays on every recomposition.
+- **Subdivisions (OpenGL only):** vertex count is `((w-1)*s+1) * ((h-1)*s+1)`. Indices are 32-bit, so there is no 65 535 vertex cap, but cost still scales with it.
+- **Folded meshes:** if control points cross so that cells overlap, the shader paths draw the first matching cell; the OpenGL path draws all triangles without culling.
 
 ---
 
-### Animating Control Points
+## Threading
 
-```kotlin
-@Composable
-fun AnimatedPointMesh() {
-    val infiniteTransition = rememberInfiniteTransition(label = "point-transition")
-
-    val animatedMiddlePoint = infiniteTransition.animateOffset(
-        initialValue = Offset(0.2f, 0.2f),
-        targetValue = Offset(0.8f, 0.8f),
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    StardustMesh(
-        width = 3,
-        height = 3,
-        points = arrayOf(
-            Offset(0f, 0f),   Offset(0.5f, 0f),       Offset(1f, 0f),
-            Offset(0f, 0.5f), animatedMiddlePoint.value, Offset(1f, 0.5f),
-            Offset(0f, 1f),   Offset(0.5f, 1f),       Offset(1f, 1f)
-        ),
-        colors = arrayOf(
-            Color.Red,    Color.Magenta, Color.Blue,
-            Color.Yellow, Color.White,   Color.Green,
-            Color.Cyan,   Color.DarkGray, Color.Black
-        ),
-        modifier = Modifier.fillMaxSize()
-    )
-}
-```
+- `StardustMeshState` and the composables are main-thread APIs.
+- On the OpenGL path, arrays are copied on the UI thread before being handed to the GL thread.
+- `pointsArray()`/`colorsArray()` return shared buffers; consume them immediately.
 
 ---
 
-### Fluid Simplex Noise Animation
+## Troubleshooting
 
-#### High-Level 1-Liner (`AnimatedStardustMesh`)
-```kotlin
-@Composable
-fun SimpleSimplexMesh() {
-    AnimatedStardustMesh(
-        colors = listOf(
-            Color(0xffF36E21), Color(0xffF0A92A), Color(0xffE7D043), Color(0xffE7E95D),
-            Color(0xffDFF168), Color(0xffB1E192), Color(0xff7FD3A9), Color(0xff5EC6B8),
-            Color(0xff4AB8C2), Color(0xff4099B9), Color(0xff3B79A8), Color(0xff395B93),
-            Color(0xff36447C), Color(0xff332E66), Color(0xff301E4E), Color(0xff2D1137)
-        ),
-        width = 4,
-        height = 4,
-        speed = 0.3f,
-        wobbleAmount = 0.2f,
-        dustIntensity = 0.05f,
-        modifier = Modifier.fillMaxSize()
-    )
-}
-```
+| Symptom | Cause / fix |
+|---|---|
+| `IllegalArgumentException: points must have width*height entries` | Array sizes don't match the grid. |
+| Blank output on Android < 33 | Device lacks ES 3.0, or shader compile failed; check Logcat for "Mesh gradient shader compile failed". |
+| Mesh upside-down versus the old library | The old library drew `y = 0` at the bottom. Now `y = 0` is the top. Use `1f - y` to restore. |
+| Animation restarts on recomposition | You pass a new colour list each time. Remember it, or keep its contents stable. |
+| iOS build can't find `ComposeApp` | Run `./gradlew :sample:embedAndSignAppleFrameworkForXcode` or build from Xcode (see the README). |
+| Web page is blank | Serve via `./gradlew :sample:wasmJsBrowserDevelopmentRun`; opening `index.html` from disk won't work. |
 
-#### Custom State Loop (`rememberStardustMeshState`)
-```kotlin
-@Composable
-fun SimplexNoiseMeshExample(modifier: Modifier = Modifier) {
-    val width = 4
-    val height = 4
+---
 
-    val colors = remember {
-        listOf(
-            Color(0xffF36E21), Color(0xffF0A92A), Color(0xffE7D043), Color(0xffE7E95D),
-            Color(0xffDFF168), Color(0xffB1E192), Color(0xff7FD3A9), Color(0xff5EC6B8),
-            Color(0xff4AB8C2), Color(0xff4099B9), Color(0xff3B79A8), Color(0xff395B93),
-            Color(0xff36447C), Color(0xff332E66), Color(0xff301E4E), Color(0xff2D1137)
-        )
-    }
+## Migrating from the Android-only library
 
-    val initialPoints = remember {
-        Array(width * height) { i ->
-            val col = i % width
-            val row = i / width
-            Offset(x = col / (width - 1f), y = row / (height - 1f))
-        }
-    }
-
-    val meshState = rememberStardustMeshState(points = initialPoints)
-
-    LaunchedEffect(Unit) {
-        var time = 0f
-        val basePoints = initialPoints.toList()
-        val currentPoints = initialPoints.toMutableList()
-        val targetPoints = initialPoints.toMutableList()
-        var lastFrameTime = 0L
-
-        while (true) {
-            withFrameNanos { frameTime ->
-                if (lastFrameTime == 0L) lastFrameTime = frameTime
-                val deltaTime = (frameTime - lastFrameTime) / 1_000_000_000.0f
-                lastFrameTime = frameTime
-                time += deltaTime * 0.3f
-
-                for (i in targetPoints.indices) {
-                    val col = i % width
-                    val row = i / width
-                    val isBorder = row == 0 || row == height - 1 || col == 0 || col == width - 1
-
-                    if (!isBorder) {
-                        val bp = basePoints[i]
-                        val noiseX = SimplexNoise.noise(bp.x * 1.5f, time + i) * 0.2f
-                        val noiseY = SimplexNoise.noise(bp.y * 1.5f, time + i + 100f) * 0.2f
-                        targetPoints[i] = Offset(bp.x + noiseX, bp.y + noiseY)
-                    }
-                }
-
-                for (i in currentPoints.indices) {
-                    val lerped = lerp(currentPoints[i], targetPoints[i], (8f * deltaTime))
-                    currentPoints[i] = lerped
-                }
-
-                launch {
-                    meshState.snapAllPoints(currentPoints.toList())
-                }
-            }
-        }
-    }
-
-    StardustMesh(
-        modifier = modifier,
-        width = width,
-        height = height,
-        state = meshState,
-        dustIntensity = 0.05f
-    )
-}
-```
+| Before | Now |
+|---|---|
+| `y = 0` at bottom | `y = 0` at top |
+| `StardustMeshRenderer`/`Helper` public | Internal (Android OpenGL fallback only) |
+| `MeshData` was a `data class` | Plain class with `component1/2`, `copy`, content `equals` |
+| `AnimatedMeshState.meshData` only | Also `state` (preferred) |
+| `generateMeshPoints`/animation used `i / height` for the row | Fixed to `i / width` (non-square grids) |
+| `BezierPoint` in `github.om252345...` | `io.github.quantum3600.stardust.data` |
+| `BezierPoint(position, controlPointOffset)` | `BezierPoint.symmetric(...)` |

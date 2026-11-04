@@ -23,7 +23,7 @@ float hash(float2 p, float seed) {
 half4 main(float2 coord) {
     float n = hash(coord, uSeed);
     float g = clamp(0.5 + (n - 0.5) * uIntensity, 0.0, 1.0);
-    return half4(g, g, g, uIntensity);
+    return half4(half3(g) * uIntensity, uIntensity);
 }
 """
 

@@ -1,5 +1,7 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import java.net.HttpURLConnection
 import java.net.URI
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
@@ -11,32 +13,43 @@ plugins {
 }
 
 group = "io.github.quantum3600"
-version = "1.0.5-alpha05"
+version = "2.0.0-alpha00"
 
 android {
     namespace = "io.github.quantum3600.stardust"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
-        minSdk = 26
+        minSdk = 21
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 }
 
 kotlin {
     androidTarget {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+            jvmTarget.set(JvmTarget.JVM_11)
         }
     }
     jvm("desktop")
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
     }
     js(IR) {
         browser()
+    }
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    applyDefaultHierarchyTemplate {
+        common {
+            group("skiko") {
+                withJvm()
+                withJs()
+                withWasmJs()
+            }
+        }
     }
 
     sourceSets {

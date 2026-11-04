@@ -1,5 +1,7 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsTargetDsl
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
@@ -16,30 +18,16 @@ kotlin {
         }
     }
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
-    jvm("desktop") {
-        mainRun {
-            mainClass.set("io.github.quantum3600.stardust.DesktopMainKt")
-        }
-    }
+    jvm("desktop")
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        outputModuleName.set("sample")
+        outputModuleName.set("meshSample")
         browser {
-            val rootDirPath = project.rootDir.path
-            val projectDirPath = project.projectDir.path
-            commonWebpackConfig {
-                outputFileName = "sample.js"
-                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
-                    static = (static ?: mutableListOf()).apply {
-                        add(rootDirPath)
-                        add(projectDirPath)
-                    }
-                }
-            }
+            commonWebpackConfig { outputFileName = "meshSample.js" }
         }
         binaries.executable()
     }
-    js(IR) { browser() }
+    js { browser() }
 
     sourceSets {
         commonMain.dependencies {
@@ -61,6 +49,7 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+                implementation(libs.kotlinx.coroutines.swing)
             }
         }
     }
@@ -80,7 +69,11 @@ android {
 
 compose.desktop {
     application {
-        mainClass = "io.github.quantum3600.stardust.DesktopMainKt"
-        jvmArgs("-Xms64m", "-Xmx512m")
+        mainClass = "io.github.quantum3600.stardust.MainKt"
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "MeshGradientSample"
+            packageVersion = "1.0.3"
+        }
     }
 }
