@@ -36,7 +36,7 @@ fun StardustMesh(
 
 /** Mesh gradient driven by a [MeshGradientState]; animation only triggers redraws. */
 @Composable
-fun MeshGradient(
+fun StardustMesh(
     modifier: Modifier = Modifier,
     width: Int,
     height: Int,

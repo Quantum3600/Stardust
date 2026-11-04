@@ -7,7 +7,7 @@ import kotlin.test.assertNotNull
 class MeshGradientShaderTest {
     @Test
     fun testShaderSourceCompiles() {
-        val effect = RuntimeEffect.makeForShader(MeshGradientShaderSource)
+        val effect = RuntimeEffect.makeForShader(MeshShaderSource.build(2, 2))
         assertNotNull(effect)
     }
 

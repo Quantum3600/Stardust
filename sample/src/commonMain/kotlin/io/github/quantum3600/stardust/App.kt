@@ -119,7 +119,7 @@ private fun AnimatedDemo() {
     val anim = rememberSimplexAnimatedMesh(w, h, colors, animationSpeed = speed, noiseIntensity = intensity)
 
     Box(Modifier.fillMaxSize()) {
-        MeshGradient(Modifier.fillMaxSize(), width = w, height = h, state = anim.state)
+        StardustMesh(Modifier.fillMaxSize(), width = w, height = h, state = anim.state)
         ControlPanel(Modifier.align(Alignment.BottomCenter)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Palette.entries.forEach { p ->
@@ -162,7 +162,7 @@ private fun InteractiveDemo() {
             }
         },
     ) {
-        MeshGradient(Modifier.fillMaxSize(), width = 3, height = 3, state = state)
+        StardustMesh(Modifier.fillMaxSize(), width = 3, height = 3, state = state)
         ControlPanel(Modifier.align(Alignment.BottomCenter)) {
             Text("Tap anywhere to move the centre point", style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
