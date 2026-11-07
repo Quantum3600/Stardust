@@ -14,7 +14,7 @@ plugins {
 }
 
 group = "io.github.quantum3600"
-version = "2.0.0-alpha01"
+version = "2.0.0-alpha02"
 
 kotlin {
     androidLibrary {
