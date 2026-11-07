@@ -27,7 +27,10 @@ kotlin {
         }
         binaries.executable()
     }
-    js { browser() }
+    js {
+        browser()
+        binaries.executable()
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -45,6 +48,7 @@ kotlin {
             implementation(libs.androidx.appcompat)
             implementation(libs.androidx.lifecycle.runtime.ktx)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.activity.ktx)
         }
         val desktopMain by getting {
             dependencies {
@@ -56,14 +60,25 @@ kotlin {
 }
 
 android {
-    namespace = "io.github.quantum3600.stardust"
-    compileSdk = 35
+    namespace = "io.github.quantum3600.stardust.sample"
+    compileSdk = 37
     defaultConfig {
         applicationId = "com.trishit.stardust"
         minSdk = 28
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0.3"
+    }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+}
+
+androidComponents {
+    beforeVariants { variantBuilder ->
+        variantBuilder.hostTests[com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE]?.enable = true
     }
 }
 

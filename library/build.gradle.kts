@@ -1,3 +1,4 @@
+
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import java.net.HttpURLConnection
 import java.net.URI
@@ -5,7 +6,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.compose)
@@ -15,31 +16,29 @@ plugins {
 group = "io.github.quantum3600"
 version = "2.0.0-alpha01"
 
-android {
-    namespace = "io.github.quantum3600.stardust"
-    compileSdk = 36
-    defaultConfig {
-        minSdk = 21
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-}
-
 kotlin {
-    androidTarget {
+    androidLibrary {
+        namespace = "io.github.quantum3600.stardust.library"
+        compileSdk = 37
+        minSdk = 21
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
+        }
+
+        androidResources {
+            enable = true
         }
     }
     jvm("desktop")
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
+        binaries.executable()
     }
     js(IR) {
         browser()
+        binaries.executable()
     }
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     applyDefaultHierarchyTemplate {

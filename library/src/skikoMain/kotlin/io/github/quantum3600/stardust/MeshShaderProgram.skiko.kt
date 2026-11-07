@@ -10,6 +10,8 @@ import androidx.compose.ui.graphics.asComposeShader
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 
+import androidx.compose.ui.draw.drawBehind
+
 internal class SkslMeshProgram(gridWidth: Int, gridHeight: Int) : MeshShaderProgram {
     private val effect = RuntimeEffect.makeForShader(MeshShaderSource.build(gridWidth, gridHeight))
 
@@ -33,4 +35,16 @@ internal actual fun StardustMeshContent(
 ) {
     val program = remember(width, height) { SkslMeshProgram(width, height) }
     ShaderMeshGradient(modifier, program, pointsProvider, colorsProvider)
+}
+
+@Composable
+internal actual fun Modifier.stardustMeshContent(
+    width: Int,
+    height: Int,
+    subdivisions: Int,
+    pointsProvider: () -> FloatArray,
+    colorsProvider: () -> FloatArray,
+): Modifier {
+    val program = remember(width, height) { SkslMeshProgram(width, height) }
+    return this.drawBehind { drawMesh(program, pointsProvider(), colorsProvider()) }
 }

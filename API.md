@@ -4,6 +4,7 @@ Package: `io.github.quantum3600.stardust` (utils in `.utils`, data in `.data`).
 
 - [Concepts](#concepts)
 - [Composables](#composables)
+- [Modifiers](#modifiers-modifierstardustmesh)
 - [StardustMeshState](#stardustmeshstate)
 - [Utilities](#utilities)
 - [Animation helpers](#animation-helpers)
@@ -58,11 +59,11 @@ Renders a mesh from fixed arrays. Recomposes when you pass new arrays.
 
 Use this overload for static meshes or when you drive the arrays yourself.
 
-### `MeshGradient` (state overload)
+### `StardustMesh` (state overload)
 
 ```kotlin
 @Composable
-fun MeshGradient(
+fun StardustMesh(
     modifier: Modifier = Modifier,
     width: Int,
     height: Int,
@@ -84,6 +85,47 @@ fun rememberStardustMeshState(points: Array<Offset>, colors: Array<Color>): Star
 
 Remembers a state keyed on the **contents** of `points` and `colors` (not array identity), so an inline
 `arrayOf(...)` doesn't reset it on every recomposition. Changing the contents creates a fresh state.
+
+### Modifiers (`Modifier.stardustMesh` & `Modifier.stardustMeshAnimation`)
+
+```kotlin
+@Composable
+fun Modifier.stardustMesh(
+    width: Int,
+    height: Int,
+    points: Array<Offset>,
+    colors: Array<Color>,
+    globalSubdivisions: Int = 32,
+): Modifier
+
+@Composable
+fun Modifier.stardustMesh(
+    width: Int,
+    height: Int,
+    state: StardustMeshState,
+    globalSubdivisions: Int = 32,
+): Modifier
+
+@Composable
+fun Modifier.stardustMesh(
+    width: Int,
+    height: Int,
+    animatedState: AnimatedMeshState,
+    globalSubdivisions: Int = 32,
+): Modifier
+
+@Composable
+fun Modifier.stardustMeshAnimation(
+    width: Int,
+    height: Int,
+    colors: List<Color>,
+    animationSpeed: Float = 0.3f,
+    noiseIntensity: Float = 0.2f,
+    globalSubdivisions: Int = 32,
+): Modifier
+```
+
+Applies a static, state-driven, or simplex-noise animated mesh gradient directly behind the content of any composable (e.g. `Box`, `Button`, `Text`, `Surface`).
 
 ---
 

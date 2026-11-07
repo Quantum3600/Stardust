@@ -53,7 +53,7 @@ fun App() {
     MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
         Surface(Modifier.fillMaxSize()) {
             var tab by remember { mutableStateOf(0) }
-            val tabs = listOf("Animated", "Interactive", "Generated")
+            val tabs = listOf("Animated", "Interactive", "Generated", "Modifier API")
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Text(
                     text = "Backend: ${platformInfo()}",
@@ -69,7 +69,8 @@ fun App() {
                     when (tab) {
                         0 -> AnimatedDemo()
                         1 -> InteractiveDemo()
-                        else -> GeneratedDemo()
+                        2 -> GeneratedDemo()
+                        else -> ModifierDemo()
                     }
                 }
             }
@@ -237,5 +238,52 @@ private fun LabeledSlider(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.width(96.dp), style = MaterialTheme.typography.bodyMedium)
         Slider(value = value, onValueChange = onChange, valueRange = range)
+    }
+}
+
+/** 4) Modifier API demo: applying mesh gradient to containers/composables via Modifier.stardustMesh / Modifier.stardustMeshAnimation */
+@Composable
+private fun ModifierDemo() {
+    val initialPoints = remember { generateMeshPoints(3, 3, randomness = 0.1f) }
+    val initialColors = remember {
+        arrayOf(
+            Color(0xFF8A2387), Color(0xFFE94057), Color(0xFFF27121),
+            Color(0xFF00F260), Color(0xFF0575E6), Color(0xFF8A2387),
+            Color(0xFFF12711), Color(0xFFF5AF19), Color(0xFF00F260),
+        )
+    }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .stardustMeshAnimation(width = 3, height = 3, colors = initialColors.toList(), animationSpeed = 0.4f),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth()
+                .stardustMesh(width = 3, height = 3, points = initialPoints, colors = initialColors),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = Color.Transparent,
+            tonalElevation = 8.dp,
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "Composable Modifier API",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color.White,
+                )
+                Text(
+                    text = "Mesh gradients applied directly via Modifier.stardustMesh(...) and Modifier.stardustMeshAnimation(...)",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+        }
     }
 }

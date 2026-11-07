@@ -30,7 +30,7 @@ internal fun ShaderMeshGradient(
     )
 }
 
-private fun DrawScope.drawMesh(program: MeshShaderProgram, points: FloatArray, colors: FloatArray) {
+internal fun DrawScope.drawMesh(program: MeshShaderProgram, points: FloatArray, colors: FloatArray) {
     if (size.width <= 0f || size.height <= 0f) return
     drawRect(brush = program.createBrush(points, colors, size))
 }
@@ -45,3 +45,13 @@ internal expect fun StardustMeshContent(
     pointsProvider: () -> FloatArray,
     colorsProvider: () -> FloatArray,
 )
+
+/** Platform implementation of the stardust mesh gradient modifier. */
+@Composable
+internal expect fun Modifier.stardustMeshContent(
+    width: Int,
+    height: Int,
+    subdivisions: Int,
+    pointsProvider: () -> FloatArray,
+    colorsProvider: () -> FloatArray,
+): Modifier
